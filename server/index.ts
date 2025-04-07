@@ -1,11 +1,44 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./init-db";
+import { setupAuth } from "./auth";
+import { storage } from "./storage";
+
+// Extend session type to include userId
+declare module 'express-session' {
+  interface SessionData {
+    userId?: number;
+  }
+}
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure session middleware
+const sessionConfig = {
+  secret: process.env.SESSION_SECRET || 'pharmacy-boltehr-secret-key',
+  resave: false,
+  saveUninitialized: false,
+  store: storage.sessionStore,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+  }
+};
+
+// Trust first proxy in production
+if (app.get('env') === 'production') {
+  app.set('trust proxy', 1);
+  sessionConfig.cookie.secure = true;
+}
+
+app.use(session(sessionConfig));
+
+// Setup authentication
+setupAuth(app);
 
 app.use((req, res, next) => {
   const start = Date.now();

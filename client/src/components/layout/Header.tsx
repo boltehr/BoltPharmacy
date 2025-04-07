@@ -109,10 +109,10 @@ const Header = () => {
                   ) : (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link href="/login">Log in</Link>
+                        <Link href="/auth">Sign In</Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href="/register">Register</Link>
+                        <Link href="/auth">Create Account</Link>
                       </DropdownMenuItem>
                     </>
                   )}

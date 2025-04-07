@@ -8,8 +8,10 @@ import { CartProvider } from "./lib/context/cart";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import ShoppingCart from "./components/layout/ShoppingCart";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
+import AuthPage from "@/pages/auth-page";
 import Medications from "@/pages/medications";
 import MedicationDetail from "@/pages/medication-detail";
 import Prescriptions from "@/pages/prescriptions";
@@ -24,11 +26,32 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/medications" component={Medications} />
       <Route path="/medications/:id" component={MedicationDetail} />
-      <Route path="/prescriptions" component={Prescriptions} />
-      <Route path="/checkout" component={Checkout} />
-      <Route path="/account" component={Account} />
-      <Route path="/orders" component={OrderHistory} />
-      <Route path="/order/:id" component={OrderTracking} />
+      <Route path="/auth" component={AuthPage} />
+      <Route path="/prescriptions">
+        <ProtectedRoute>
+          <Prescriptions />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/checkout">
+        <ProtectedRoute>
+          <Checkout />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/account">
+        <ProtectedRoute>
+          <Account />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/orders">
+        <ProtectedRoute>
+          <OrderHistory />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/order/:id">
+        <ProtectedRoute>
+          <OrderTracking />
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

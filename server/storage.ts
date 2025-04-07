@@ -8,10 +8,14 @@ import {
   insurance, type Insurance, type InsertInsurance,
   cart, type Cart, type InsertCart, type CartItem
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, like, desc, sql } from "drizzle-orm";
 
 // Storage interface
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import memorystore from "memorystore";
+
 export interface IStorage {
   // User methods
   getUser(id: number): Promise<User | undefined>;
@@ -20,6 +24,9 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   
+  // Session store
+  sessionStore: session.Store;
+
   // Medication methods
   getMedication(id: number): Promise<Medication | undefined>;
   getMedications(limit?: number, offset?: number): Promise<Medication[]>;
@@ -74,6 +81,8 @@ export class MemStorage implements IStorage {
   private insurances: Map<number, Insurance>;
   private carts: Map<number, Cart>;
   
+  public sessionStore: session.Store;
+  
   private userIdCounter: number;
   private medicationIdCounter: number;
   private categoryIdCounter: number;
@@ -92,6 +101,12 @@ export class MemStorage implements IStorage {
     this.orderItems = new Map();
     this.insurances = new Map();
     this.carts = new Map();
+    
+    // Initialize session store
+    const MemoryStore = memorystore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
     
     this.userIdCounter = 1;
     this.medicationIdCounter = 1;
@@ -537,6 +552,18 @@ export class MemStorage implements IStorage {
 // Database storage implementation
 
 export class DatabaseStorage implements IStorage {
+  public sessionStore: session.Store;
+  
+  constructor() {
+    // Initialize PostgreSQL session store
+    const PostgresSessionStore = connectPg(session);
+    this.sessionStore = new PostgresSessionStore({
+      pool: pool,
+      tableName: 'session', // Default table name for session storage
+      createTableIfMissing: true
+    });
+  }
+  
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));

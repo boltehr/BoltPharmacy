@@ -2,6 +2,7 @@ import express, { type Request, Response } from "express";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from './auth';
 import { 
   insertUserSchema, 
   insertMedicationSchema,
@@ -28,7 +29,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   };
   
-  // User routes
+  // Setup authentication routes (/api/register, /api/login, /api/logout, /api/user)
+  // These routes are defined in auth.ts
+  setupAuth(app);
+  
+  // Legacy User routes - consider migrating to auth.ts
   router.post("/users", validateRequest(insertUserSchema), async (req, res) => {
     try {
       const existingUser = await storage.getUserByEmail(req.body.email);

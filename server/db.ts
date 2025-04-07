@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL) {
 console.log("Connecting to PostgreSQL database...");
 
 // Create a PostgreSQL connection pool with error handling
-const pool = new pg.Pool({
+export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
     rejectUnauthorized: false // Required for some PG providers
