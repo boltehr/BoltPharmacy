@@ -320,7 +320,7 @@ export class MemStorage implements IStorage {
       dateOfBirth: user.dateOfBirth ?? null,
       sexAtBirth: user.sexAtBirth ?? null,
       profileCompleted: user.profileCompleted ?? false,
-      role: user.role ?? "user",
+      role: user.role || "user",
     };
     this.users.set(id, newUser);
     return newUser;

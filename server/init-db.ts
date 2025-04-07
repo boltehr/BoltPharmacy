@@ -33,6 +33,20 @@ export async function initializeDatabase() {
     sexAtBirth: 'male'
   };
   
+  // Add admin user
+  const adminUser: InsertUser = {
+    username: 'admin',
+    email: 'admin@example.com',
+    password: 'Admin123!',
+    firstName: 'Admin',
+    lastName: 'User',
+    phone: '555-987-6543',
+    address: '456 Admin St, Admintown, USA',
+    dateOfBirth: '1985-05-05',
+    sexAtBirth: 'female',
+    role: 'admin'
+  };
+  
   try {
     console.log('Adding test user...');
     // Check if user already exists
@@ -43,8 +57,18 @@ export async function initializeDatabase() {
     } else {
       console.log('Test user already exists, skipping creation');
     }
+    
+    console.log('Adding admin user...');
+    // Check if admin user already exists
+    const existingAdmin = await storage.getUserByEmail(adminUser.email);
+    if (!existingAdmin) {
+      await storage.createUser(adminUser);
+      console.log('Admin user created successfully');
+    } else {
+      console.log('Admin user already exists, skipping creation');
+    }
   } catch (error) {
-    console.error('Failed to create test user:', error);
+    console.error('Failed to create test users:', error);
   }
 
   // Add categories
