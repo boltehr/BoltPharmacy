@@ -23,8 +23,8 @@ const Home = () => {
       <PopularMedications />
       <HowItWorks />
       <MedicationCategories />
-      <UploadPrescription />
-      <OrderTracking />
+      {user && <UploadPrescription />}
+      {user && <OrderTracking />}
       <Testimonials />
       {user && <Insurance />}
     </>
