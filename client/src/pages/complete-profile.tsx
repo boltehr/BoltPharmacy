@@ -207,6 +207,18 @@ const CompleteProfile = () => {
     },
   });
   
+  // Skip profile completion for now
+  const skipProfileCompletion = () => {
+    toast({
+      title: "Profile completion skipped",
+      description: "You can complete your profile later from your account settings",
+    });
+    
+    setTimeout(() => {
+      navigate(redirectTo);
+    }, 1000);
+  };
+  
   // Redirect already if user is already authenticated and has completed profile
   if (user?.profileCompleted) {
     return <Redirect to={redirectTo} />;
@@ -252,7 +264,8 @@ const CompleteProfile = () => {
         <Info className="h-4 w-4" />
         <AlertTitle>Important</AlertTitle>
         <AlertDescription>
-          To ensure accurate medication delivery, we need your complete information. All fields are required for UPS/FedEx shipping compliance.
+          To ensure accurate medication delivery, we need your complete information. All fields are required for UPS/FedEx shipping compliance. 
+          <strong className="block mt-1">Note: You must complete your profile before placing any orders.</strong>
         </AlertDescription>
       </Alert>
       
@@ -531,7 +544,15 @@ const CompleteProfile = () => {
                 )}
               </div>
               
-              <div className="flex justify-end">
+              <div className="flex justify-between">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="lg" 
+                  onClick={skipProfileCompletion}
+                >
+                  Skip for now
+                </Button>
                 <Button type="submit" size="lg" disabled={isPending}>
                   {isPending ? (
                     <>

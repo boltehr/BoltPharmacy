@@ -121,6 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: 'Login successful',
         description: 'You have been logged in successfully.',
       });
+      
+      // Redirect to profile completion page if profile is incomplete
+      if (!userData.profileCompleted) {
+        window.location.href = '/complete-profile';
+      }
     },
     onError: (error: any) => {
       console.error('Login mutation error:', error);
@@ -165,6 +170,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: 'Registration successful',
         description: 'Your account has been created successfully.',
       });
+      
+      // Redirect to profile completion page for new users
+      if (!userData.profileCompleted) {
+        window.location.href = '/complete-profile';
+      }
     },
     onError: (error: any) => {
       console.error('Registration mutation error:', error);

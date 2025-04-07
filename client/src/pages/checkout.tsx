@@ -1,13 +1,24 @@
 import { Helmet } from "react-helmet-async";
 import { useCart } from "@/lib/context/cart";
 import { useAuth } from "@/lib/context/auth";
-import { LogIn } from "lucide-react";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { ClipboardList, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CheckoutForm from "@/components/checkout/CheckoutForm";
 
 const Checkout = () => {
   const { cart } = useCart();
   const { user } = useAuth();
+  const [, navigate] = useLocation();
+  
+  // Check if user has completed profile
+  useEffect(() => {
+    if (user && !user.profileCompleted) {
+      // Redirect to profile completion page with return URL
+      navigate(`/complete-profile?redirect=${encodeURIComponent('/checkout')}`);
+    }
+  }, [user, navigate]);
   
   if (!user) {
     return (
@@ -23,7 +34,9 @@ const Checkout = () => {
           <p className="text-neutral-600 max-w-md mx-auto mb-6">
             You need to be signed in to complete your checkout. Please sign in to continue.
           </p>
-          <Button>Sign In</Button>
+          <Button asChild>
+            <a href={`/auth?redirect=${encodeURIComponent('/checkout')}`}>Sign In</a>
+          </Button>
         </div>
       </div>
     );
