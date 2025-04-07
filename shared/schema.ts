@@ -12,12 +12,23 @@ export const users = pgTable("users", {
   lastName: text("last_name"),
   email: text("email").notNull().unique(),
   phone: text("phone"),
+  // Shipping address
   address: text("address"),
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
+  // Billing address
+  billingAddress: text("billing_address"),
+  billingCity: text("billing_city"),
+  billingState: text("billing_state"),
+  billingZipCode: text("billing_zip_code"),
+  // Flag for same billing as shipping address
+  sameAsShipping: boolean("same_as_shipping").default(true),
+  // User info
   dateOfBirth: text("date_of_birth"),
   sexAtBirth: text("sex_at_birth"),
+  // Profile completion status
+  profileCompleted: boolean("profile_completed").default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

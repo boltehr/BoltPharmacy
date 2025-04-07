@@ -5,9 +5,13 @@ import { Loader2 } from "lucide-react";
 
 type ProtectedRouteProps = {
   children: ReactNode;
+  requireProfileComplete?: boolean;
 };
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
+export default function ProtectedRoute({ 
+  children, 
+  requireProfileComplete = true 
+}: ProtectedRouteProps) {
   const { user, isLoading } = useAuth();
   const [location] = useLocation();
 
@@ -21,6 +25,12 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (!user) {
     return <Redirect to={`/auth?redirect=${encodeURIComponent(location)}`} />;
+  }
+  
+  // If profile completion is required and profile is not complete,
+  // redirect to the profile completion page
+  if (requireProfileComplete && !user.profileCompleted && location !== '/complete-profile') {
+    return <Redirect to={`/complete-profile?redirect=${encodeURIComponent(location)}`} />;
   }
 
   return <>{children}</>;

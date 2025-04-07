@@ -56,12 +56,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(user);
   });
   
-  router.put("/users/:id", async (req, res) => {
-    const user = await storage.updateUser(Number(req.params.id), req.body);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
+  router.put("/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      // Check if the authenticated user is updating their own profile
+      if (req.user?.id !== Number(req.params.id)) {
+        return res.status(403).json({ message: "You can only update your own profile" });
+      }
+      
+      // Filter out sensitive fields that shouldn't be updated directly
+      const { password, ...updateData } = req.body;
+      
+      // Perform the update
+      const user = await storage.updateUser(Number(req.params.id), updateData);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update session user data
+      if (req.user) {
+        Object.assign(req.user, user);
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error("Error updating user profile:", err);
+      res.status(500).json({ message: "Failed to update user profile" });
     }
-    res.json(user);
   });
   
   // Medication routes

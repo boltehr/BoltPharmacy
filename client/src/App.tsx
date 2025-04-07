@@ -19,6 +19,7 @@ import Checkout from "@/pages/checkout";
 import Account from "@/pages/account";
 import OrderHistory from "@/pages/order-history";
 import OrderTracking from "@/pages/order-tracking";
+import CompleteProfile from "@/pages/complete-profile";
 
 function Router() {
   return (
@@ -27,6 +28,11 @@ function Router() {
       <Route path="/medications" component={Medications} />
       <Route path="/medications/:id" component={MedicationDetail} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/complete-profile">
+        <ProtectedRoute requireProfileComplete={false}>
+          <CompleteProfile />
+        </ProtectedRoute>
+      </Route>
       <Route path="/prescriptions">
         <ProtectedRoute>
           <Prescriptions />
