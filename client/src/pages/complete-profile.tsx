@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -147,26 +147,53 @@ const CompleteProfile = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const redirectTo = urlParams.get('redirect') || '/';
   
+  // Initialize form with empty values first
   const form = useForm<ProfileCompletionValues>({
     resolver: zodResolver(profileCompletionSchema),
     defaultValues: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      email: user?.email || "",
-      phone: user?.phone || "",
-      address: user?.address || "",
-      city: user?.city || "",
-      state: user?.state || "",
-      zipCode: user?.zipCode || "",
-      billingAddress: user?.billingAddress || "",
-      billingCity: user?.billingCity || "",
-      billingState: user?.billingState || "",
-      billingZipCode: user?.billingZipCode || "",
-      sameAsShipping: user?.sameAsShipping ?? true,
-      dateOfBirth: user?.dateOfBirth || "",
-      sexAtBirth: user?.sexAtBirth || "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      billingAddress: "",
+      billingCity: "",
+      billingState: "",
+      billingZipCode: "",
+      sameAsShipping: true,
+      dateOfBirth: "",
+      sexAtBirth: "",
     },
   });
+  
+  // Update form values when user data is available
+  React.useEffect(() => {
+    if (user) {
+      form.reset({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        address: user.address || "",
+        city: user.city || "",
+        state: user.state || "",
+        zipCode: user.zipCode || "",
+        billingAddress: user.billingAddress || "",
+        billingCity: user.billingCity || "",
+        billingState: user.billingState || "",
+        billingZipCode: user.billingZipCode || "",
+        sameAsShipping: user.sameAsShipping ?? true,
+        dateOfBirth: user.dateOfBirth || "",
+        sexAtBirth: user.sexAtBirth || "",
+      });
+      
+      // Update the same as shipping state
+      setSameAsShipping(user.sameAsShipping ?? true);
+    }
+  }, [user, form]);
   
   // Update mutation
   const { mutate: updateProfile, isPending } = useMutation({

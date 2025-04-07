@@ -1,6 +1,6 @@
 import { pool, db } from '../server/db';
 import { hash } from 'bcrypt';
-import { users } from '@shared/schema';
+import { users } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 
 async function createAdminUser() {
