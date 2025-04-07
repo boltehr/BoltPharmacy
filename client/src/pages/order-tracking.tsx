@@ -9,6 +9,7 @@ import {
   CardContent,
   CardFooter
 } from "@/components/ui/card";
+import { TrackingInfo } from "@/components/shipping/TrackingInfo";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -241,7 +242,7 @@ const OrderTracking = () => {
             </div>
           </div>
           
-          <div className="mt-8 border-t border-neutral-200 pt-6">
+          <div className="mt-8 border-t border-neutral-200 pt-6" id="tracking-section">
             <h4 className="text-base font-medium text-neutral-900">Shipping Details</h4>
             
             <div className="mt-4 bg-neutral-50 p-4 rounded-lg">
@@ -257,10 +258,6 @@ const OrderTracking = () => {
                       <p className="text-sm text-neutral-600 mt-1">
                         Carrier: {order.carrier || "Not specified"}
                       </p>
-                      <Button variant="link" className="text-primary hover:text-primary-dark text-sm font-medium mt-2 h-auto p-0">
-                        <ExternalLink className="h-3 w-3 mr-1" />
-                        View delivery updates
-                      </Button>
                     </>
                   ) : (
                     <p className="text-sm text-neutral-600 mt-1">
@@ -272,6 +269,16 @@ const OrderTracking = () => {
                 </div>
               </div>
             </div>
+            
+            {order.trackingNumber && order.carrier && (
+              <div className="mt-4">
+                <TrackingInfo 
+                  initialTrackingNumber={order.trackingNumber}
+                  initialCarrierId={order.carrier}
+                  userId={user?.id}
+                />
+              </div>
+            )}
           </div>
           
           <div className="mt-6 bg-neutral-50 rounded-lg p-4">
@@ -363,7 +370,12 @@ const OrderTracking = () => {
             )}
             
             {["shipped", "delivered"].includes(order.status) && order.trackingNumber && (
-              <Button>
+              <Button 
+                onClick={() => {
+                  // Scroll to tracking section
+                  document.getElementById("tracking-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Track Shipment
               </Button>

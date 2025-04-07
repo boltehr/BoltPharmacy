@@ -1,8 +1,10 @@
 import express, { type Request, Response } from "express";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { ZodError } from "zod";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from './auth';
+import { shippingService, type ShippingAddress, type PackageDetails } from './services/shipping';
 import { 
   insertUserSchema, 
   insertMedicationSchema,
@@ -770,6 +772,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error deactivating white label:", err);
       res.status(500).json({ message: "Failed to deactivate white label" });
+    }
+  });
+  
+  // Shipping API Routes
+  router.post("/shipping/rates", isAuthenticated, async (req, res) => {
+    try {
+      // Validate required fields
+      const { destination, packageDetails } = req.body;
+      
+      if (!destination || !destination.street1 || !destination.city || !destination.state || !destination.zip) {
+        return res.status(400).json({ message: "Invalid shipping address. Street, city, state, and ZIP code are required." });
+      }
+      
+      // Get shipping rates
+      const rates = await shippingService.getShippingRates(destination, packageDetails);
+      res.json(rates);
+    } catch (error) {
+      console.error("Error calculating shipping rates:", error);
+      res.status(500).json({ message: "Failed to calculate shipping rates" });
+    }
+  });
+  
+  router.post("/shipping/label", isAuthenticated, async (req, res) => {
+    try {
+      // Validate required fields
+      const { destination, carrierId, serviceCode, packageDetails } = req.body;
+      
+      if (!destination || !destination.street1 || !destination.city || !destination.state || !destination.zip) {
+        return res.status(400).json({ message: "Invalid shipping address. Street, city, state, and ZIP code are required." });
+      }
+      
+      if (!carrierId || !serviceCode) {
+        return res.status(400).json({ message: "Carrier ID and service code are required." });
+      }
+      
+      // Create shipping label
+      const shippingLabel = await shippingService.createShippingLabel(
+        destination, 
+        carrierId, 
+        serviceCode, 
+        packageDetails
+      );
+      
+      res.json(shippingLabel);
+    } catch (error) {
+      console.error("Error creating shipping label:", error);
+      res.status(500).json({ message: "Failed to create shipping label" });
+    }
+  });
+  
+  router.get("/shipping/track/:trackingNumber", async (req, res) => {
+    try {
+      const { trackingNumber } = req.params;
+      const carrierId = req.query.carrier as string;
+      
+      if (!trackingNumber || !carrierId) {
+        return res.status(400).json({ message: "Tracking number and carrier ID are required." });
+      }
+      
+      // Get the destination address if available (for better tracking information)
+      const destination = req.query.userId ? 
+        await (async () => {
+          const user = await storage.getUser(Number(req.query.userId));
+          if (user && user.address) {
+            return {
+              name: `${user.firstName || ""} ${user.lastName || ""}`.trim(),
+              street1: user.address,
+              city: user.city || "",
+              state: user.state || "",
+              zip: user.zipCode || "",  // This matches the schema field name
+              country: "US",
+              phone: user.phone || ""
+            };
+          }
+          return undefined;
+        })() : undefined;
+      
+      // Track package
+      const trackingInfo = await shippingService.trackPackage(trackingNumber, carrierId, destination);
+      res.json(trackingInfo);
+    } catch (error) {
+      console.error("Error tracking package:", error);
+      res.status(500).json({ message: "Failed to track package" });
     }
   });
   
