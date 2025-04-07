@@ -59,8 +59,8 @@ const CheckoutForm = () => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Check if any items require a prescription
-  const requiresPrescription = cart.some((item) => item.requiresPrescription);
+  // Check if any items require a prescription (DEMO MODE: Always false for demo)
+  const requiresPrescription = false; // Bypassed for demo purposes
 
   // Get user's prescriptions
   const { data: prescriptions } = useQuery({
@@ -115,6 +115,9 @@ const CheckoutForm = () => {
       zipCode: user?.zipCode || "",
       shippingMethod: "standard" as const,
       paymentMethod: "creditCard" as const,
+      cardNumber: "4242 4242 4242 4242", // Demo card number
+      cardExpiry: "12/25",               // Demo expiry
+      cardCvc: "123",                    // Demo CVC
     },
   });
 
@@ -133,14 +136,8 @@ const CheckoutForm = () => {
       return;
     }
 
-    if (requiresPrescription && !hasValidPrescription) {
-      toast({
-        title: "Prescription required",
-        description: "Please upload a valid prescription before checking out",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Prescription check bypassed for demo
+    // Skip prescription validation for demo purposes
 
     setIsSubmitting(true);
 
@@ -489,10 +486,13 @@ const CheckoutForm = () => {
               type="submit" 
               className="w-full"
               size="lg"
-              disabled={isSubmitting || (requiresPrescription && !hasValidPrescription)}
+              disabled={isSubmitting}
             >
               {isSubmitting ? "Processing..." : `Place Order - $${total.toFixed(2)}`}
             </Button>
+            <p className="text-sm text-center mt-2 text-neutral-600">
+              <span className="text-amber-600 font-medium">Demo Mode</span>: Payment processing and prescription validation are bypassed.
+            </p>
           </form>
         </Form>
       </div>
