@@ -8,6 +8,8 @@ import {
   insurance, type Insurance, type InsertInsurance,
   cart, type Cart, type InsertCart, type CartItem
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, like, desc, sql } from "drizzle-orm";
 
 // Storage interface
 export interface IStorage {
@@ -233,7 +235,20 @@ export class MemStorage implements IStorage {
   
   async createUser(user: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const newUser: User = { ...user, id };
+    // Ensure all nullable fields have values
+    const newUser: User = { 
+      ...user, 
+      id,
+      firstName: user.firstName ?? null,
+      lastName: user.lastName ?? null,
+      phone: user.phone ?? null,
+      address: user.address ?? null,
+      city: user.city ?? null,
+      state: user.state ?? null,
+      zipCode: user.zipCode ?? null,
+      dateOfBirth: user.dateOfBirth ?? null,
+      sexAtBirth: user.sexAtBirth ?? null,
+    };
     this.users.set(id, newUser);
     return newUser;
   }
@@ -272,13 +287,29 @@ export class MemStorage implements IStorage {
   
   async getPopularMedications(limit: number): Promise<Medication[]> {
     return Array.from(this.medications.values())
-      .sort((a, b) => b.popularity - a.popularity)
+      .sort((a, b) => (b.popularity || 0) - (a.popularity || 0))
       .slice(0, limit);
   }
   
   async createMedication(medication: InsertMedication): Promise<Medication> {
     const id = this.medicationIdCounter++;
-    const newMedication: Medication = { ...medication, id };
+    // Ensure all nullable fields have values
+    const newMedication: Medication = { 
+      ...medication, 
+      id,
+      genericName: medication.genericName ?? null,
+      brandName: medication.brandName ?? null,
+      description: medication.description ?? null,
+      uses: medication.uses ?? null,
+      sideEffects: medication.sideEffects ?? null,
+      dosage: medication.dosage ?? null,
+      retailPrice: medication.retailPrice ?? null,
+      requiresPrescription: medication.requiresPrescription ?? null,
+      inStock: medication.inStock ?? null,
+      category: medication.category ?? null,
+      imageUrl: medication.imageUrl ?? null,
+      popularity: medication.popularity ?? null
+    };
     this.medications.set(id, newMedication);
     return newMedication;
   }
@@ -307,7 +338,12 @@ export class MemStorage implements IStorage {
   
   async createCategory(category: InsertCategory): Promise<Category> {
     const id = this.categoryIdCounter++;
-    const newCategory: Category = { ...category, id };
+    const newCategory: Category = { 
+      ...category, 
+      id,
+      description: category.description ?? null,
+      icon: category.icon ?? null
+    };
     this.categories.set(id, newCategory);
     return newCategory;
   }
@@ -328,7 +364,11 @@ export class MemStorage implements IStorage {
       ...prescription, 
       id, 
       uploadDate: now,
-      status: prescription.status || 'pending' 
+      status: prescription.status ?? 'pending',
+      doctorName: prescription.doctorName ?? null,
+      doctorPhone: prescription.doctorPhone ?? null,
+      fileUrl: prescription.fileUrl ?? null,
+      notes: prescription.notes ?? null
     };
     this.prescriptions.set(id, newPrescription);
     return newPrescription;
@@ -351,7 +391,11 @@ export class MemStorage implements IStorage {
   async getOrdersByUser(userId: number): Promise<Order[]> {
     return Array.from(this.orders.values())
       .filter(order => order.userId === userId)
-      .sort((a, b) => new Date(b.orderDate).getTime() - new Date(a.orderDate).getTime());
+      .sort((a, b) => {
+        const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+        const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+        return dateB - dateA;
+      });
   }
   
   async createOrder(order: InsertOrder): Promise<Order> {
@@ -361,7 +405,11 @@ export class MemStorage implements IStorage {
       ...order, 
       id, 
       orderDate: now,
-      status: order.status || 'pending'
+      status: order.status ?? 'pending',
+      shippingAddress: order.shippingAddress ?? null,
+      trackingNumber: order.trackingNumber ?? null,
+      carrier: order.carrier ?? null,
+      prescriptionId: order.prescriptionId ?? null
     };
     this.orders.set(id, newOrder);
     return newOrder;
@@ -402,7 +450,13 @@ export class MemStorage implements IStorage {
   
   async createInsurance(insurance: InsertInsurance): Promise<Insurance> {
     const id = this.insuranceIdCounter++;
-    const newInsurance: Insurance = { ...insurance, id };
+    const newInsurance: Insurance = { 
+      ...insurance, 
+      id,
+      groupNumber: insurance.groupNumber ?? null,
+      phoneNumber: insurance.phoneNumber ?? null,
+      isPrimary: insurance.isPrimary ?? null
+    };
     this.insurances.set(id, newInsurance);
     return newInsurance;
   }
@@ -428,7 +482,8 @@ export class MemStorage implements IStorage {
       ...cart, 
       id, 
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
+      items: Array.isArray(cart.items) ? cart.items : []
     };
     this.carts.set(id, newCart);
     return newCart;
@@ -456,4 +511,216 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database storage implementation
+
+export class DatabaseStorage implements IStorage {
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  // Medication methods
+  async getMedication(id: number): Promise<Medication | undefined> {
+    const [medication] = await db.select().from(medications).where(eq(medications.id, id));
+    return medication;
+  }
+
+  async getMedications(limit = 100, offset = 0): Promise<Medication[]> {
+    return await db.select().from(medications).limit(limit).offset(offset);
+  }
+
+  async getMedicationsByCategory(category: string): Promise<Medication[]> {
+    return await db.select().from(medications).where(eq(medications.category, category));
+  }
+
+  async searchMedications(query: string): Promise<Medication[]> {
+    const searchPattern = `%${query}%`;
+    return await db
+      .select()
+      .from(medications)
+      .where(
+        sql`${medications.name} ILIKE ${searchPattern} OR 
+            ${medications.genericName} ILIKE ${searchPattern} OR 
+            ${medications.brandName} ILIKE ${searchPattern}`
+      );
+  }
+
+  async getPopularMedications(limit: number): Promise<Medication[]> {
+    return await db
+      .select()
+      .from(medications)
+      .orderBy(desc(medications.popularity))
+      .limit(limit);
+  }
+
+  async createMedication(medication: InsertMedication): Promise<Medication> {
+    const [newMedication] = await db.insert(medications).values(medication).returning();
+    return newMedication;
+  }
+
+  async updateMedication(id: number, medicationData: Partial<InsertMedication>): Promise<Medication | undefined> {
+    const [updatedMedication] = await db
+      .update(medications)
+      .set(medicationData)
+      .where(eq(medications.id, id))
+      .returning();
+    return updatedMedication;
+  }
+
+  // Category methods
+  async getCategory(id: number): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    return category;
+  }
+
+  async getCategoryByName(name: string): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.name, name));
+    return category;
+  }
+
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories);
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const [newCategory] = await db.insert(categories).values(category).returning();
+    return newCategory;
+  }
+
+  // Prescription methods
+  async getPrescription(id: number): Promise<Prescription | undefined> {
+    const [prescription] = await db.select().from(prescriptions).where(eq(prescriptions.id, id));
+    return prescription;
+  }
+
+  async getPrescriptionsByUser(userId: number): Promise<Prescription[]> {
+    return await db.select().from(prescriptions).where(eq(prescriptions.userId, userId));
+  }
+
+  async createPrescription(prescription: InsertPrescription): Promise<Prescription> {
+    const [newPrescription] = await db.insert(prescriptions).values(prescription).returning();
+    return newPrescription;
+  }
+
+  async updatePrescription(id: number, prescriptionData: Partial<InsertPrescription>): Promise<Prescription | undefined> {
+    const [updatedPrescription] = await db
+      .update(prescriptions)
+      .set(prescriptionData)
+      .where(eq(prescriptions.id, id))
+      .returning();
+    return updatedPrescription;
+  }
+
+  // Order methods
+  async getOrder(id: number): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order;
+  }
+
+  async getOrdersByUser(userId: number): Promise<Order[]> {
+    return await db
+      .select()
+      .from(orders)
+      .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.orderDate));
+  }
+
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [newOrder] = await db.insert(orders).values(order).returning();
+    return newOrder;
+  }
+
+  async updateOrder(id: number, orderData: Partial<InsertOrder>): Promise<Order | undefined> {
+    const [updatedOrder] = await db
+      .update(orders)
+      .set(orderData)
+      .where(eq(orders.id, id))
+      .returning();
+    return updatedOrder;
+  }
+
+  // Order item methods
+  async getOrderItems(orderId: number): Promise<OrderItem[]> {
+    return await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  }
+
+  async createOrderItem(orderItem: InsertOrderItem): Promise<OrderItem> {
+    const [newOrderItem] = await db.insert(orderItems).values(orderItem).returning();
+    return newOrderItem;
+  }
+
+  // Insurance methods
+  async getInsurance(id: number): Promise<Insurance | undefined> {
+    const [insuranceData] = await db.select().from(insurance).where(eq(insurance.id, id));
+    return insuranceData;
+  }
+
+  async getInsurancesByUser(userId: number): Promise<Insurance[]> {
+    return await db.select().from(insurance).where(eq(insurance.userId, userId));
+  }
+
+  async createInsurance(insuranceData: InsertInsurance): Promise<Insurance> {
+    const [newInsurance] = await db.insert(insurance).values(insuranceData).returning();
+    return newInsurance;
+  }
+
+  async updateInsurance(id: number, insuranceData: Partial<InsertInsurance>): Promise<Insurance | undefined> {
+    const [updatedInsurance] = await db
+      .update(insurance)
+      .set(insuranceData)
+      .where(eq(insurance.id, id))
+      .returning();
+    return updatedInsurance;
+  }
+
+  // Cart methods
+  async getCart(userId: number): Promise<Cart | undefined> {
+    const [userCart] = await db.select().from(cart).where(eq(cart.userId, userId));
+    return userCart;
+  }
+
+  async createCart(cartData: InsertCart): Promise<Cart> {
+    const [newCart] = await db.insert(cart).values(cartData).returning();
+    return newCart;
+  }
+
+  async updateCart(userId: number, items: CartItem[]): Promise<Cart | undefined> {
+    const [updatedCart] = await db
+      .update(cart)
+      .set({ 
+        items,
+        updatedAt: new Date()
+      })
+      .where(eq(cart.userId, userId))
+      .returning();
+    return updatedCart;
+  }
+}
+
+// Use database storage
+export const storage = new DatabaseStorage();

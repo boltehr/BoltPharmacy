@@ -1,5 +1,6 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, json, foreignKey, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+import { relations } from "drizzle-orm";
 import { z } from "zod";
 
 // Users schema
@@ -26,7 +27,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 // Insurance schema
 export const insurance = pgTable("insurance", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
   provider: text("provider").notNull(),
   memberId: text("member_id").notNull(),
   groupNumber: text("group_number"),
@@ -76,7 +77,7 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 // Prescriptions schema
 export const prescriptions = pgTable("prescriptions", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
   doctorName: text("doctor_name"),
   doctorPhone: text("doctor_phone"),
   uploadDate: timestamp("upload_date").defaultNow(),
@@ -93,7 +94,7 @@ export const insertPrescriptionSchema = createInsertSchema(prescriptions).omit({
 // Orders schema
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
   orderDate: timestamp("order_date").defaultNow(),
   status: text("status").default("pending"),
   shippingMethod: text("shipping_method").notNull(),
@@ -102,7 +103,7 @@ export const orders = pgTable("orders", {
   shippingAddress: text("shipping_address"),
   trackingNumber: text("tracking_number"),
   carrier: text("carrier"),
-  prescriptionId: integer("prescription_id"),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
 });
 
 export const insertOrderSchema = createInsertSchema(orders).omit({
@@ -113,8 +114,8 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
 // Order items schema
 export const orderItems = pgTable("order_items", {
   id: serial("id").primaryKey(),
-  orderId: integer("order_id").notNull(),
-  medicationId: integer("medication_id").notNull(),
+  orderId: integer("order_id").notNull().references(() => orders.id),
+  medicationId: integer("medication_id").notNull().references(() => medications.id),
   quantity: integer("quantity").notNull(),
   price: doublePrecision("price").notNull(),
 });
@@ -126,7 +127,7 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
 // Cart schema (for storing user cart data)
 export const cart = pgTable("cart", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   items: json("items").notNull().$type<CartItem[]>(),
@@ -146,6 +147,67 @@ export type CartItem = {
   price: number;
   requiresPrescription: boolean;
 };
+
+// Define relations between tables
+export const usersRelations = relations(users, ({ many }) => ({
+  prescriptions: many(prescriptions),
+  orders: many(orders),
+  insurance: many(insurance),
+  cart: many(cart),
+}));
+
+export const insuranceRelations = relations(insurance, ({ one }) => ({
+  user: one(users, {
+    fields: [insurance.userId],
+    references: [users.id],
+  }),
+}));
+
+export const medicationsRelations = relations(medications, ({ many, one }) => ({
+  orderItems: many(orderItems),
+}));
+
+export const categoriesRelations = relations(categories, ({ many }) => ({
+  // In a real implementation, there would be a many-to-many relation between categories and medications
+}));
+
+export const prescriptionsRelations = relations(prescriptions, ({ one, many }) => ({
+  user: one(users, {
+    fields: [prescriptions.userId],
+    references: [users.id],
+  }),
+  orders: many(orders),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  user: one(users, {
+    fields: [orders.userId],
+    references: [users.id],
+  }),
+  prescription: one(prescriptions, {
+    fields: [orders.prescriptionId],
+    references: [prescriptions.id],
+  }),
+  orderItems: many(orderItems),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id],
+  }),
+  medication: one(medications, {
+    fields: [orderItems.medicationId],
+    references: [medications.id],
+  }),
+}));
+
+export const cartRelations = relations(cart, ({ one }) => ({
+  user: one(users, {
+    fields: [cart.userId],
+    references: [users.id],
+  }),
+}));
 
 // Export types
 export type User = typeof users.$inferSelect;

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializeDatabase } from "./init-db";
 
 const app = express();
 app.use(express.json());
@@ -66,5 +67,10 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+    
+    // Initialize the database with sample data
+    initializeDatabase()
+      .then(() => log('Database initialization complete'))
+      .catch(err => log(`Database initialization error: ${err.message}`));
   });
 })();
