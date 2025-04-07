@@ -208,7 +208,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   router.post("/orders", validateRequest(insertOrderSchema), async (req, res) => {
     try {
-      const order = await storage.createOrder(req.body);
+      // Create initial order
+      let order = await storage.createOrder(req.body);
+      
+      // For demo purposes: auto-transition the order to shipped with tracking
+      // after a small delay to simulate real-world processing
+      setTimeout(async () => {
+        try {
+          // Generate a random tracking number and carrier
+          const trackingNumber = "1Z" + Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+          const carrier = Math.random() > 0.5 ? "ups" : "fedex";
+          
+          // Update the order with shipping info
+          await storage.updateOrder(order.id, { 
+            status: "shipped", 
+            trackingNumber, 
+            carrier 
+          });
+          
+          console.log(`Demo: Order #${order.id} auto-updated to shipped status with tracking`);
+        } catch (error) {
+          console.error("Failed to auto-update order status:", error);
+        }
+      }, 30000); // Update after 30 seconds
+      
       res.status(201).json(order);
     } catch (err) {
       res.status(500).json({ message: "Failed to create order" });

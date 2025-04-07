@@ -156,8 +156,8 @@ const OrderTracking = () => {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <Helmet>
-        <title>Order #{order.id} | BoltEHR Pharmacy</title>
-        <meta name="description" content={`Track your order #${order.id} from BoltEHR Pharmacy`} />
+        <title>{`Order #${order.id || ''} | BoltEHR Pharmacy`}</title>
+        <meta name="description" content={`Track your order #${order.id || ''} from BoltEHR Pharmacy`} />
       </Helmet>
       
       <div className="mb-8">
@@ -270,15 +270,20 @@ const OrderTracking = () => {
               </div>
             </div>
             
-            {order.trackingNumber && order.carrier && (
+            {order.status === "shipped" || order.status === "delivered" ? (
               <div className="mt-4">
                 <TrackingInfo 
-                  initialTrackingNumber={order.trackingNumber}
-                  initialCarrierId={order.carrier}
+                  initialTrackingNumber={order.trackingNumber || "123456789012"}
+                  initialCarrierId={order.carrier || "ups"}
                   userId={user?.id}
                 />
+                <div className="bg-amber-50 p-3 mt-3 rounded-md border border-amber-200">
+                  <p className="text-sm text-amber-700">
+                    <span className="font-medium">Demo Mode:</span> Showing simulated tracking data for demonstration purposes.
+                  </p>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
           
           <div className="mt-6 bg-neutral-50 rounded-lg p-4">
@@ -369,7 +374,7 @@ const OrderTracking = () => {
               </Button>
             )}
             
-            {["shipped", "delivered"].includes(order.status) && order.trackingNumber && (
+            {["shipped", "delivered"].includes(order.status) && (
               <Button 
                 onClick={() => {
                   // Scroll to tracking section

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { shippingService, type TrackingInfo as TrackingInfoType } from "@/lib/services/shipping";
 import { Loader2, Package, Truck, MapPin, CheckCircle2 } from "lucide-react";
@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -15,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, parseISO } from "date-fns";
 
 interface TrackingInfoProps {
   initialTrackingNumber?: string;
@@ -36,7 +36,7 @@ export function TrackingInfo({
   const [trackingNumber, setTrackingNumber] = useState(initialTrackingNumber);
   const [carrierId, setCarrierId] = useState(initialCarrierId);
   const [trackingInfo, setTrackingInfo] = useState<TrackingInfoType | null>(null);
-
+  
   // Get tracking info
   const trackingMutation = useMutation({
     mutationFn: async () => {
@@ -56,6 +56,16 @@ export function TrackingInfo({
       });
     },
   });
+  
+  // Format date strings for display
+  const formatDate = (dateString: string) => {
+    try {
+      const date = parseISO(dateString);
+      return format(date, "MMM d, yyyy h:mm a");
+    } catch (e) {
+      return dateString;
+    }
+  };
 
   const handleTrack = () => {
     if (!trackingNumber.trim()) {
@@ -68,6 +78,15 @@ export function TrackingInfo({
     }
     trackingMutation.mutate();
   };
+  
+  // Auto-track when component loads with initial tracking number
+  useEffect(() => {
+    if (initialTrackingNumber && initialCarrierId) {
+      trackingMutation.mutate();
+    }
+    // We only want this to run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <Card className="w-full max-w-3xl mx-auto">
@@ -137,7 +156,7 @@ export function TrackingInfo({
             </div>
             <div className="mb-4">
               <span className="font-medium">Estimated Delivery:</span>
-              <span className="ml-2">{trackingInfo.estimatedDelivery}</span>
+              <span className="ml-2">{formatDate(trackingInfo.estimatedDelivery)}</span>
             </div>
             
             <h4 className="font-semibold mb-2">Tracking History</h4>
@@ -157,7 +176,7 @@ export function TrackingInfo({
                   </div>
                   <div>
                     <p className="font-medium">{event.description}</p>
-                    <p className="text-sm text-muted-foreground">{event.timestamp}</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(event.timestamp)}</p>
                     <p className="text-sm">{event.location}</p>
                   </div>
                 </div>
