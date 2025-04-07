@@ -4,6 +4,39 @@ import { User } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
 import { insertUserSchema } from "@shared/schema";
 import { compare, hash } from "bcrypt";
+import { z } from "zod";
+
+// Custom validation schema for user registration
+const registerSchema = z.object({
+  email: z.string()
+    .email("Please enter a valid email address")
+    .refine(email => email.includes("@") && email.includes("."), {
+      message: "Please enter a valid email address with domain (e.g., name@example.com)"
+    }),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .refine(password => /[A-Z]/.test(password), {
+      message: "Password must contain at least one uppercase letter"
+    })
+    .refine(password => /[a-z]/.test(password), {
+      message: "Password must contain at least one lowercase letter"
+    })
+    .refine(password => /[0-9]/.test(password), {
+      message: "Password must contain at least one number"
+    })
+    .refine(password => /[^A-Za-z0-9]/.test(password), {
+      message: "Password must contain at least one special character"
+    }),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  sexAtBirth: z.string().optional(),
+});
 
 // For TypeScript to understand session user property
 declare global {
@@ -36,25 +69,45 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
 // Route to register a new user
 export async function register(req: Request, res: Response) {
   try {
+    // Validate request data with enhanced schema
     try {
-      insertUserSchema.parse(req.body);
+      registerSchema.parse(req.body);
     } catch (err: any) {
       const validationError = fromZodError(err);
       return res.status(400).json({ message: validationError.message });
     }
 
-    // Check if user already exists
+    // Check if email exists
     const existingUser = await storage.getUserByEmail(req.body.email);
     if (existingUser) {
       return res.status(409).json({ message: "User with this email already exists" });
     }
 
+    // Email validation with regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(req.body.email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+
     // Hash the password
     const hashedPassword = await hashPassword(req.body.password);
+
+    // Generate a username from email if not provided
+    let username = req.body.username;
+    if (!username) {
+      username = req.body.email.split('@')[0];
+      // Check if this username exists
+      const userWithUsername = await storage.getUserByUsername(username);
+      if (userWithUsername) {
+        // Add random numbers to make it unique
+        username = `${username}${Math.floor(Math.random() * 10000)}`;
+      }
+    }
 
     // Create the user with the hashed password
     const user = await storage.createUser({
       ...req.body,
+      username,
       password: hashedPassword,
     });
 

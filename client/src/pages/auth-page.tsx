@@ -13,15 +13,35 @@ import { zodResolver } from "@hookform/resolvers/zod";
 
 // Login form schema
 const loginFormSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
+  email: z.string()
+    .email("Please enter a valid email address")
+    .refine(email => email.includes("@") && email.includes("."), {
+      message: "Please enter a valid email address with domain (e.g., name@example.com)"
+    }),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-// Register form schema
+// Register form schema with strong password requirements
 const registerFormSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string()
+    .email("Please enter a valid email address")
+    .refine(email => email.includes("@") && email.includes("."), {
+      message: "Please enter a valid email address with domain (e.g., name@example.com)"
+    }),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .refine(password => /[A-Z]/.test(password), {
+      message: "Password must contain at least one uppercase letter"
+    })
+    .refine(password => /[a-z]/.test(password), {
+      message: "Password must contain at least one lowercase letter"
+    })
+    .refine(password => /[0-9]/.test(password), {
+      message: "Password must contain at least one number"
+    })
+    .refine(password => /[^A-Za-z0-9]/.test(password), {
+      message: "Password must contain at least one special character"
+    }),
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
@@ -44,7 +64,6 @@ export default function AuthPage() {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerFormSchema),
     defaultValues: {
-      username: "",
       email: "",
       password: "",
     },
@@ -141,25 +160,12 @@ export default function AuthPage() {
                 <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4 p-6">
                   <FormField
                     control={registerForm.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input placeholder="johndoe" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={registerForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="example@email.com" {...field} />
+                          <Input placeholder="example@email.com" type="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

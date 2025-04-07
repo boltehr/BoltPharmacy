@@ -6,7 +6,7 @@ import { z } from "zod";
 // Users schema
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
+  username: text("username").unique(),
   password: text("password").notNull(),
   firstName: text("first_name"),
   lastName: text("last_name"),

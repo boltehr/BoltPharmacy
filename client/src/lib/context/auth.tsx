@@ -22,7 +22,6 @@ type LoginData = {
 
 // Type for register data (includes all required user fields)
 type RegisterData = {
-  username: string;
   email: string;
   password: string;
   firstName?: string;
