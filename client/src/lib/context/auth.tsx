@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { User } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { useLocation } from 'wouter';
 
 // Types for our auth context
 type AuthContextType = {
@@ -42,6 +43,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [_, navigate] = useLocation();
 
   // Fetch current user
   const {
@@ -124,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Redirect to profile completion page if profile is incomplete
       if (!userData.profileCompleted) {
-        window.location.href = '/complete-profile';
+        navigate('/complete-profile');
       }
     },
     onError: (error: any) => {
@@ -173,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Redirect to profile completion page for new users
       if (!userData.profileCompleted) {
-        window.location.href = '/complete-profile';
+        navigate('/complete-profile');
       }
     },
     onError: (error: any) => {
@@ -213,6 +215,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         title: 'Logged out',
         description: 'You have been logged out successfully.',
       });
+      
+      // Redirect to home page after logout
+      navigate('/');
     },
     onError: (error: any) => {
       console.error('Logout mutation error:', error);
