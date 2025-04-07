@@ -31,6 +31,8 @@ const MOCK_USER: User = {
   state: "MA",
   zipCode: "02108",
   phone: "555-123-4567",
+  dateOfBirth: "1990-01-15",
+  sexAtBirth: "Male",
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

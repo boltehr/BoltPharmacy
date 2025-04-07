@@ -15,6 +15,8 @@ export const users = pgTable("users", {
   city: text("city"),
   state: text("state"),
   zipCode: text("zip_code"),
+  dateOfBirth: text("date_of_birth"),
+  sexAtBirth: text("sex_at_birth"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

@@ -31,6 +31,8 @@ const profileFormSchema = z.object({
   city: z.string().optional(),
   state: z.string().optional(),
   zipCode: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  sexAtBirth: z.string().optional(),
 });
 
 const passwordFormSchema = z.object({
@@ -61,6 +63,8 @@ const Account = () => {
       city: user?.city || "",
       state: user?.state || "",
       zipCode: user?.zipCode || "",
+      dateOfBirth: user?.dateOfBirth || "",
+      sexAtBirth: user?.sexAtBirth || "",
     },
   });
   
@@ -238,6 +242,45 @@ const Account = () => {
                           <FormLabel>Phone Number</FormLabel>
                           <FormControl>
                             <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={profileForm.control}
+                      name="dateOfBirth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Date of Birth</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={profileForm.control}
+                      name="sexAtBirth"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Sex at Birth</FormLabel>
+                          <FormControl>
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              {...field}
+                            >
+                              <option value="">Select...</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                              <option value="Prefer not to say">Prefer not to say</option>
+                            </select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
