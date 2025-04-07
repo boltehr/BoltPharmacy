@@ -13,6 +13,7 @@ import {
   insertInsuranceSchema,
   insertRefillRequestSchema,
   insertRefillNotificationSchema,
+  insertWhiteLabelSchema,
   type CartItem
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
@@ -403,6 +404,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
   // Refill Notification routes
   router.get("/refill-notifications/user/:userId", isAuthenticated, async (req, res) => {
     try {
@@ -501,6 +504,138 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Failed to create test user:", err);
       res.status(500).json({ message: "Failed to create test user" });
+    }
+  });
+  
+  // White Label Configuration routes
+  router.get("/white-labels", isAuthenticated, async (req, res) => {
+    try {
+      // Check if the authenticated user is an admin (add admin role check when available)
+      // For now, allow any authenticated user to get white labels
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabels = await storage.getWhiteLabels();
+      res.json(whiteLabels);
+    } catch (err) {
+      console.error("Error fetching white labels:", err);
+      res.status(500).json({ message: "Failed to fetch white labels" });
+    }
+  });
+  
+  router.get("/white-labels/active", async (req, res) => {
+    try {
+      const whiteLabel = await storage.getActiveWhiteLabel();
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "No active white label configuration found" });
+      }
+      res.json(whiteLabel);
+    } catch (err) {
+      console.error("Error fetching active white label:", err);
+      res.status(500).json({ message: "Failed to fetch active white label" });
+    }
+  });
+  
+  router.get("/white-labels/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabel = await storage.getWhiteLabel(Number(req.params.id));
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "White label configuration not found" });
+      }
+      res.json(whiteLabel);
+    } catch (err) {
+      console.error("Error fetching white label:", err);
+      res.status(500).json({ message: "Failed to fetch white label" });
+    }
+  });
+  
+  router.post("/white-labels", isAuthenticated, validateRequest(insertWhiteLabelSchema), async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Check if a white label with the same name already exists
+      const existingWhiteLabel = await storage.getWhiteLabelByName(req.body.name);
+      if (existingWhiteLabel) {
+        return res.status(409).json({ message: "White label with this name already exists" });
+      }
+      
+      const whiteLabel = await storage.createWhiteLabel(req.body);
+      res.status(201).json(whiteLabel);
+    } catch (err) {
+      console.error("Error creating white label:", err);
+      res.status(500).json({ message: "Failed to create white label" });
+    }
+  });
+  
+  router.put("/white-labels/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabel = await storage.getWhiteLabel(Number(req.params.id));
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "White label configuration not found" });
+      }
+      
+      // If name is being changed, check for duplicates
+      if (req.body.name && req.body.name !== whiteLabel.name) {
+        const existingWhiteLabel = await storage.getWhiteLabelByName(req.body.name);
+        if (existingWhiteLabel && existingWhiteLabel.id !== Number(req.params.id)) {
+          return res.status(409).json({ message: "White label with this name already exists" });
+        }
+      }
+      
+      const updatedWhiteLabel = await storage.updateWhiteLabel(Number(req.params.id), req.body);
+      res.json(updatedWhiteLabel);
+    } catch (err) {
+      console.error("Error updating white label:", err);
+      res.status(500).json({ message: "Failed to update white label" });
+    }
+  });
+  
+  router.post("/white-labels/:id/activate", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabel = await storage.getWhiteLabel(Number(req.params.id));
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "White label configuration not found" });
+      }
+      
+      const activatedWhiteLabel = await storage.activateWhiteLabel(Number(req.params.id));
+      res.json(activatedWhiteLabel);
+    } catch (err) {
+      console.error("Error activating white label:", err);
+      res.status(500).json({ message: "Failed to activate white label" });
+    }
+  });
+  
+  router.post("/white-labels/:id/deactivate", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabel = await storage.getWhiteLabel(Number(req.params.id));
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "White label configuration not found" });
+      }
+      
+      const deactivatedWhiteLabel = await storage.deactivateWhiteLabel(Number(req.params.id));
+      res.json(deactivatedWhiteLabel);
+    } catch (err) {
+      console.error("Error deactivating white label:", err);
+      res.status(500).json({ message: "Failed to deactivate white label" });
     }
   });
   

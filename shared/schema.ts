@@ -322,3 +322,36 @@ export type InsertRefillRequest = z.infer<typeof insertRefillRequestSchema>;
 
 export type RefillNotification = typeof refillNotifications.$inferSelect;
 export type InsertRefillNotification = z.infer<typeof insertRefillNotificationSchema>;
+
+// White Label Configuration schema
+export const whiteLabels = pgTable("white_labels", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  logo: text("logo"),
+  primaryColor: text("primary_color").default("#3b82f6"), // Default blue
+  secondaryColor: text("secondary_color").default("#10b981"), // Default green
+  accentColor: text("accent_color").default("#f59e0b"), // Default amber
+  fontFamily: text("font_family").default("Inter"),
+  customCss: text("custom_css"),
+  favicon: text("favicon"),
+  companyName: text("company_name").notNull(),
+  contactEmail: text("contact_email").notNull(),
+  contactPhone: text("contact_phone"),
+  address: text("address"),
+  customFooter: text("custom_footer"),
+  customHeader: text("custom_header"),
+  termsUrl: text("terms_url"),
+  privacyUrl: text("privacy_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  isActive: boolean("is_active").default(false),
+});
+
+export const insertWhiteLabelSchema = createInsertSchema(whiteLabels).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type WhiteLabel = typeof whiteLabels.$inferSelect;
+export type InsertWhiteLabel = z.infer<typeof insertWhiteLabelSchema>;

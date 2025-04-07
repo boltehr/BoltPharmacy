@@ -8,7 +8,8 @@ import {
   insurance, type Insurance, type InsertInsurance,
   cart, type Cart, type InsertCart, type CartItem,
   refillRequests, type RefillRequest, type InsertRefillRequest,
-  refillNotifications, type RefillNotification, type InsertRefillNotification
+  refillNotifications, type RefillNotification, type InsertRefillNotification,
+  whiteLabels, type WhiteLabel, type InsertWhiteLabel
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, like, desc, sql } from "drizzle-orm";
@@ -84,6 +85,16 @@ export interface IStorage {
   getRefillNotificationsByRefillRequest(refillRequestId: number): Promise<RefillNotification[]>;
   createRefillNotification(notification: InsertRefillNotification): Promise<RefillNotification>;
   markRefillNotificationAsRead(id: number): Promise<RefillNotification | undefined>;
+  
+  // White Label Configuration methods
+  getWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
+  getWhiteLabelByName(name: string): Promise<WhiteLabel | undefined>;
+  getActiveWhiteLabel(): Promise<WhiteLabel | undefined>;
+  getWhiteLabels(): Promise<WhiteLabel[]>;
+  createWhiteLabel(config: InsertWhiteLabel): Promise<WhiteLabel>;
+  updateWhiteLabel(id: number, config: Partial<InsertWhiteLabel>): Promise<WhiteLabel | undefined>;
+  activateWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
+  deactivateWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
 }
 
 // In-memory storage implementation
@@ -687,6 +698,105 @@ export class MemStorage implements IStorage {
     this.refillNotifications.set(id, updatedNotification);
     return updatedNotification;
   }
+  
+  // White Label Configuration methods
+  private whiteLabels: Map<number, WhiteLabel> = new Map();
+  private whiteLabelIdCounter: number = 1;
+  
+  async getWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    return this.whiteLabels.get(id);
+  }
+  
+  async getWhiteLabelByName(name: string): Promise<WhiteLabel | undefined> {
+    return Array.from(this.whiteLabels.values()).find(config => config.name === name);
+  }
+  
+  async getActiveWhiteLabel(): Promise<WhiteLabel | undefined> {
+    return Array.from(this.whiteLabels.values()).find(config => config.isActive);
+  }
+  
+  async getWhiteLabels(): Promise<WhiteLabel[]> {
+    return Array.from(this.whiteLabels.values());
+  }
+  
+  async createWhiteLabel(config: InsertWhiteLabel): Promise<WhiteLabel> {
+    const id = this.whiteLabelIdCounter++;
+    const now = new Date();
+    
+    const newWhiteLabel: WhiteLabel = {
+      ...config,
+      id,
+      createdAt: now,
+      updatedAt: now,
+      logo: config.logo ?? null,
+      primaryColor: config.primaryColor ?? "#3b82f6",
+      secondaryColor: config.secondaryColor ?? "#10b981",
+      accentColor: config.accentColor ?? "#f59e0b",
+      fontFamily: config.fontFamily ?? "Inter",
+      customCss: config.customCss ?? null,
+      favicon: config.favicon ?? null,
+      contactPhone: config.contactPhone ?? null,
+      address: config.address ?? null,
+      customFooter: config.customFooter ?? null,
+      customHeader: config.customHeader ?? null,
+      termsUrl: config.termsUrl ?? null,
+      privacyUrl: config.privacyUrl ?? null,
+      isActive: config.isActive ?? false
+    };
+    
+    this.whiteLabels.set(id, newWhiteLabel);
+    return newWhiteLabel;
+  }
+  
+  async updateWhiteLabel(id: number, config: Partial<InsertWhiteLabel>): Promise<WhiteLabel | undefined> {
+    const whiteLabel = await this.getWhiteLabel(id);
+    if (!whiteLabel) return undefined;
+    
+    const updatedWhiteLabel: WhiteLabel = { 
+      ...whiteLabel, 
+      ...config,
+      updatedAt: new Date()
+    };
+    
+    this.whiteLabels.set(id, updatedWhiteLabel);
+    return updatedWhiteLabel;
+  }
+  
+  async activateWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    // First deactivate any active white label
+    const currentActiveConfig = await this.getActiveWhiteLabel();
+    if (currentActiveConfig) {
+      currentActiveConfig.isActive = false;
+      this.whiteLabels.set(currentActiveConfig.id, currentActiveConfig);
+    }
+    
+    // Now activate the requested white label
+    const whiteLabel = await this.getWhiteLabel(id);
+    if (!whiteLabel) return undefined;
+    
+    const updatedWhiteLabel: WhiteLabel = { 
+      ...whiteLabel, 
+      isActive: true,
+      updatedAt: new Date()
+    };
+    
+    this.whiteLabels.set(id, updatedWhiteLabel);
+    return updatedWhiteLabel;
+  }
+  
+  async deactivateWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    const whiteLabel = await this.getWhiteLabel(id);
+    if (!whiteLabel) return undefined;
+    
+    const updatedWhiteLabel: WhiteLabel = { 
+      ...whiteLabel, 
+      isActive: false,
+      updatedAt: new Date()
+    };
+    
+    this.whiteLabels.set(id, updatedWhiteLabel);
+    return updatedWhiteLabel;
+  }
 }
 
 // Database storage implementation
@@ -1018,6 +1128,76 @@ export class DatabaseStorage implements IStorage {
       .where(eq(refillNotifications.id, id))
       .returning();
     return updatedNotification;
+  }
+  
+  // White Label Configuration methods
+  async getWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    const [config] = await db.select().from(whiteLabels).where(eq(whiteLabels.id, id));
+    return config;
+  }
+  
+  async getWhiteLabelByName(name: string): Promise<WhiteLabel | undefined> {
+    const [config] = await db.select().from(whiteLabels).where(eq(whiteLabels.name, name));
+    return config;
+  }
+  
+  async getActiveWhiteLabel(): Promise<WhiteLabel | undefined> {
+    const [config] = await db.select().from(whiteLabels).where(eq(whiteLabels.isActive, true));
+    return config;
+  }
+  
+  async getWhiteLabels(): Promise<WhiteLabel[]> {
+    return await db.select().from(whiteLabels).orderBy(whiteLabels.name);
+  }
+  
+  async createWhiteLabel(config: InsertWhiteLabel): Promise<WhiteLabel> {
+    const [newConfig] = await db.insert(whiteLabels).values(config).returning();
+    return newConfig;
+  }
+  
+  async updateWhiteLabel(id: number, config: Partial<InsertWhiteLabel>): Promise<WhiteLabel | undefined> {
+    const [updatedConfig] = await db
+      .update(whiteLabels)
+      .set({
+        ...config,
+        updatedAt: new Date()
+      })
+      .where(eq(whiteLabels.id, id))
+      .returning();
+    return updatedConfig;
+  }
+  
+  async activateWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    // First deactivate any active white label
+    await db
+      .update(whiteLabels)
+      .set({ isActive: false })
+      .where(eq(whiteLabels.isActive, true));
+    
+    // Now activate the requested white label
+    const [activatedConfig] = await db
+      .update(whiteLabels)
+      .set({ 
+        isActive: true,
+        updatedAt: new Date()
+      })
+      .where(eq(whiteLabels.id, id))
+      .returning();
+    
+    return activatedConfig;
+  }
+  
+  async deactivateWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    const [deactivatedConfig] = await db
+      .update(whiteLabels)
+      .set({ 
+        isActive: false,
+        updatedAt: new Date()
+      })
+      .where(eq(whiteLabels.id, id))
+      .returning();
+    
+    return deactivatedConfig;
   }
 }
 

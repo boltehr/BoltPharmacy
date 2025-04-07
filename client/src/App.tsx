@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { HelmetProvider } from "react-helmet-async";
 import { AuthProvider } from "./lib/context/auth";
 import { CartProvider } from "./lib/context/cart";
+import { WhiteLabelProvider } from "./lib/context/whiteLabel";
+import WhiteLabelHead from "@/components/white-label/WhiteLabelHead";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import ShoppingCart from "./components/layout/ShoppingCart";
@@ -20,6 +22,9 @@ import Account from "@/pages/account";
 import OrderHistory from "@/pages/order-history";
 import OrderTracking from "@/pages/order-tracking";
 import CompleteProfile from "@/pages/complete-profile";
+
+// Admin components
+import WhiteLabelAdmin from "@/pages/white-label-admin";
 
 function Router() {
   return (
@@ -58,6 +63,11 @@ function Router() {
           <OrderTracking />
         </ProtectedRoute>
       </Route>
+      <Route path="/admin/white-label">
+        <ProtectedRoute>
+          <WhiteLabelAdmin />
+        </ProtectedRoute>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -67,19 +77,22 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <HelmetProvider>
-        <AuthProvider>
-          <CartProvider>
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Router />
-              </main>
-              <Footer />
-              <ShoppingCart />
-            </div>
-            <Toaster />
-          </CartProvider>
-        </AuthProvider>
+        <WhiteLabelProvider>
+          <WhiteLabelHead />
+          <AuthProvider>
+            <CartProvider>
+              <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-grow">
+                  <Router />
+                </main>
+                <Footer />
+                <ShoppingCart />
+              </div>
+              <Toaster />
+            </CartProvider>
+          </AuthProvider>
+        </WhiteLabelProvider>
       </HelmetProvider>
     </QueryClientProvider>
   );
