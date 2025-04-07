@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { 
   AlertCircle, 
   CheckCircle,
@@ -236,7 +237,7 @@ const PrescriptionUpload = () => {
                 {file ? file.name : "Drag and drop your prescription here, or"}
               </p>
               <div className="mt-2">
-                <FormLabel
+                <Label
                   htmlFor="prescription-upload"
                   className="inline-flex items-center px-4 py-2 border border-neutral-300 rounded-md shadow-sm text-sm font-medium text-neutral-700 bg-white hover:bg-neutral-50 cursor-pointer"
                 >
@@ -248,7 +249,7 @@ const PrescriptionUpload = () => {
                     accept=".jpg,.jpeg,.png,.pdf"
                     onChange={handleFileInput}
                   />
-                </FormLabel>
+                </Label>
               </div>
               <p className="mt-2 text-xs text-neutral-500">
                 Accepted formats: JPG, PNG, PDF (Max 5MB)
