@@ -475,26 +475,49 @@ export class MemStorage implements IStorage {
     return Array.from(this.carts.values()).find(cart => cart.userId === userId);
   }
   
-  async createCart(cart: InsertCart): Promise<Cart> {
+  async createCart(cartData: InsertCart): Promise<Cart> {
     const id = this.cartIdCounter++;
     const now = new Date();
+    
+    // Ensure items is treated as an array of CartItem objects
+    const items: CartItem[] = Array.isArray(cartData.items) 
+      ? cartData.items.map((item: any) => ({
+          medicationId: Number(item.medicationId),
+          quantity: Number(item.quantity),
+          name: String(item.name || ''),
+          price: Number(item.price),
+          requiresPrescription: Boolean(item.requiresPrescription)
+        }))
+      : [];
+    
     const newCart: Cart = { 
-      ...cart, 
+      ...cartData, 
       id, 
       createdAt: now,
       updatedAt: now,
-      items: Array.isArray(cart.items) ? cart.items : []
+      items
     };
     this.carts.set(id, newCart);
     return newCart;
   }
   
   async updateCart(userId: number, items: CartItem[]): Promise<Cart | undefined> {
+    // Ensure items is a proper array of CartItem objects
+    const itemsArray: CartItem[] = Array.isArray(items) 
+      ? items.map((item: any) => ({
+          medicationId: Number(item.medicationId),
+          quantity: Number(item.quantity),
+          name: String(item.name || ''),
+          price: Number(item.price),
+          requiresPrescription: Boolean(item.requiresPrescription)
+        }))
+      : [];
+    
     let cart = await this.getCart(userId);
     
     if (!cart) {
       // Create new cart if it doesn't exist
-      cart = await this.createCart({ userId, items });
+      cart = await this.createCart({ userId, items: itemsArray });
       return cart;
     }
     
@@ -502,7 +525,7 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const updatedCart: Cart = { 
       ...cart, 
-      items,
+      items: itemsArray,
       updatedAt: now
     };
     
@@ -705,19 +728,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCart(cartData: InsertCart): Promise<Cart> {
-    const [newCart] = await db.insert(cart).values(cartData).returning();
+    // Ensure items is treated as an array of CartItem objects
+    const items: CartItem[] = Array.isArray(cartData.items) 
+      ? cartData.items.map((item: any) => ({
+          medicationId: Number(item.medicationId),
+          quantity: Number(item.quantity),
+          name: String(item.name || ''),
+          price: Number(item.price),
+          requiresPrescription: Boolean(item.requiresPrescription)
+        }))
+      : [];
+    
+    const data = {
+      ...cartData,
+      items
+    };
+    
+    const [newCart] = await db.insert(cart).values(data).returning();
     return newCart;
   }
 
   async updateCart(userId: number, items: CartItem[]): Promise<Cart | undefined> {
+    // Ensure items is a proper array of CartItem objects
+    const itemsArray: CartItem[] = Array.isArray(items) 
+      ? items.map((item: any) => ({
+          medicationId: Number(item.medicationId),
+          quantity: Number(item.quantity),
+          name: String(item.name || ''),
+          price: Number(item.price),
+          requiresPrescription: Boolean(item.requiresPrescription)
+        }))
+      : [];
+    
+    // Get existing cart or create a new one
+    let existingCart = await this.getCart(userId);
+    
+    if (!existingCart) {
+      // Create a new cart if none exists
+      return await this.createCart({ userId, items: itemsArray });
+    }
+    
+    // Update existing cart
     const [updatedCart] = await db
       .update(cart)
       .set({ 
-        items,
+        items: itemsArray,
         updatedAt: new Date()
       })
       .where(eq(cart.userId, userId))
       .returning();
+      
     return updatedCart;
   }
 }

@@ -1,5 +1,5 @@
 import { storage } from './storage';
-import { InsertCategory, InsertMedication } from '@shared/schema';
+import { InsertCategory, InsertMedication, InsertUser } from '@shared/schema';
 
 /**
  * Initialize the database with sample data 
@@ -7,11 +7,44 @@ import { InsertCategory, InsertMedication } from '@shared/schema';
 export async function initializeDatabase() {
   console.log('Initializing database with sample data...');
   
-  // First, check if we already have categories
-  const existingCategories = await storage.getCategories();
-  if (existingCategories.length > 0) {
-    console.log('Database already initialized with categories');
-    return;
+  try {
+    // First, check if we already have categories
+    const existingCategories = await storage.getCategories();
+    if (existingCategories.length > 0) {
+      console.log('Database already initialized with categories');
+      return;
+    }
+  } catch (error) {
+    console.error('Failed to check existing categories:', error);
+    // Continue with initialization if we can't check for existing data
+    // This helps with initial setup when tables might not exist
+  }
+  
+  // Add test user
+  const testUser: InsertUser = {
+    username: 'testuser',
+    email: 'test@example.com',
+    password: 'password123',
+    firstName: 'Test',
+    lastName: 'User',
+    phone: '555-123-4567',
+    address: '123 Main St, Anytown, USA',
+    dateOfBirth: '1990-01-01',
+    sexAtBirth: 'male'
+  };
+  
+  try {
+    console.log('Adding test user...');
+    // Check if user already exists
+    const existingUser = await storage.getUserByEmail(testUser.email);
+    if (!existingUser) {
+      await storage.createUser(testUser);
+      console.log('Test user created successfully');
+    } else {
+      console.log('Test user already exists, skipping creation');
+    }
+  } catch (error) {
+    console.error('Failed to create test user:', error);
   }
 
   // Add categories
@@ -24,9 +57,19 @@ export async function initializeDatabase() {
     { name: 'Pain Relief', description: 'Medications for pain management', icon: 'healing' }
   ];
   
-  console.log('Adding categories...');
-  for (const category of categories) {
-    await storage.createCategory(category);
+  try {
+    console.log('Adding categories...');
+    for (const category of categories) {
+      const existingCategory = await storage.getCategoryByName(category.name);
+      if (!existingCategory) {
+        await storage.createCategory(category);
+        console.log(`Category '${category.name}' created`);
+      } else {
+        console.log(`Category '${category.name}' already exists, skipping`);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to create categories:', error);
   }
   
   // Add medications
@@ -123,9 +166,19 @@ export async function initializeDatabase() {
     }
   ];
   
-  console.log('Adding medications...');
-  for (const medication of medications) {
-    await storage.createMedication(medication);
+  try {
+    console.log('Adding medications...');
+    for (const medication of medications) {
+      // We don't have a way to check if medication already exists by name, so we'll try-catch each one
+      try {
+        await storage.createMedication(medication);
+        console.log(`Medication '${medication.name}' created`);
+      } catch (error) {
+        console.error(`Failed to create medication '${medication.name}':`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to create medications:', error);
   }
   
   console.log('Database initialization complete!');
