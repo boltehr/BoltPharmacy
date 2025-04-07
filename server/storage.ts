@@ -6,7 +6,9 @@ import {
   orders, type Order, type InsertOrder,
   orderItems, type OrderItem, type InsertOrderItem,
   insurance, type Insurance, type InsertInsurance,
-  cart, type Cart, type InsertCart, type CartItem
+  cart, type Cart, type InsertCart, type CartItem,
+  refillRequests, type RefillRequest, type InsertRefillRequest,
+  refillNotifications, type RefillNotification, type InsertRefillNotification
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, like, desc, sql } from "drizzle-orm";
@@ -68,6 +70,20 @@ export interface IStorage {
   getCart(userId: number): Promise<Cart | undefined>;
   createCart(cart: InsertCart): Promise<Cart>;
   updateCart(userId: number, items: CartItem[]): Promise<Cart | undefined>;
+  
+  // Refill Request methods
+  getRefillRequest(id: number): Promise<RefillRequest | undefined>;
+  getRefillRequestsByUser(userId: number): Promise<RefillRequest[]>;
+  getRefillRequestsByPrescription(prescriptionId: number): Promise<RefillRequest[]>;
+  createRefillRequest(request: InsertRefillRequest): Promise<RefillRequest>;
+  updateRefillRequest(id: number, request: Partial<InsertRefillRequest>): Promise<RefillRequest | undefined>;
+  
+  // Refill Notification methods
+  getRefillNotification(id: number): Promise<RefillNotification | undefined>;
+  getRefillNotificationsByUser(userId: number): Promise<RefillNotification[]>;
+  getRefillNotificationsByRefillRequest(refillRequestId: number): Promise<RefillNotification[]>;
+  createRefillNotification(notification: InsertRefillNotification): Promise<RefillNotification>;
+  markRefillNotificationAsRead(id: number): Promise<RefillNotification | undefined>;
 }
 
 // In-memory storage implementation
@@ -80,6 +96,8 @@ export class MemStorage implements IStorage {
   private orderItems: Map<number, OrderItem[]>;
   private insurances: Map<number, Insurance>;
   private carts: Map<number, Cart>;
+  private refillRequests: Map<number, RefillRequest>;
+  private refillNotifications: Map<number, RefillNotification>;
   
   public sessionStore: session.Store;
   
@@ -91,6 +109,8 @@ export class MemStorage implements IStorage {
   private orderItemIdCounter: number;
   private insuranceIdCounter: number;
   private cartIdCounter: number;
+  private refillRequestIdCounter: number;
+  private refillNotificationIdCounter: number;
   
   constructor() {
     this.users = new Map();
@@ -101,6 +121,8 @@ export class MemStorage implements IStorage {
     this.orderItems = new Map();
     this.insurances = new Map();
     this.carts = new Map();
+    this.refillRequests = new Map();
+    this.refillNotifications = new Map();
     
     // Initialize session store
     const MemoryStore = memorystore(session);
@@ -116,6 +138,8 @@ export class MemStorage implements IStorage {
     this.orderItemIdCounter = 1;
     this.insuranceIdCounter = 1;
     this.cartIdCounter = 1;
+    this.refillRequestIdCounter = 1;
+    this.refillNotificationIdCounter = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -254,6 +278,9 @@ export class MemStorage implements IStorage {
     const newUser: User = { 
       ...user, 
       id,
+      username: user.username ?? null,
+      password: user.password,
+      email: user.email,
       firstName: user.firstName ?? null,
       lastName: user.lastName ?? null,
       phone: user.phone ?? null,
@@ -261,8 +288,14 @@ export class MemStorage implements IStorage {
       city: user.city ?? null,
       state: user.state ?? null,
       zipCode: user.zipCode ?? null,
+      billingAddress: user.billingAddress ?? null,
+      billingCity: user.billingCity ?? null,
+      billingState: user.billingState ?? null,
+      billingZipCode: user.billingZipCode ?? null,
+      sameAsShipping: user.sameAsShipping ?? true,
       dateOfBirth: user.dateOfBirth ?? null,
       sexAtBirth: user.sexAtBirth ?? null,
+      profileCompleted: user.profileCompleted ?? false,
     };
     this.users.set(id, newUser);
     return newUser;
@@ -547,6 +580,113 @@ export class MemStorage implements IStorage {
     this.carts.set(cart.id, updatedCart);
     return updatedCart;
   }
+
+  // Refill Request methods
+  async getRefillRequest(id: number): Promise<RefillRequest | undefined> {
+    return this.refillRequests.get(id);
+  }
+
+  async getRefillRequestsByUser(userId: number): Promise<RefillRequest[]> {
+    return Array.from(this.refillRequests.values())
+      .filter(request => request.userId === userId)
+      .sort((a, b) => {
+        const dateA = a.requestDate ? new Date(a.requestDate).getTime() : 0;
+        const dateB = b.requestDate ? new Date(b.requestDate).getTime() : 0;
+        return dateB - dateA; // Sort by newest first
+      });
+  }
+
+  async getRefillRequestsByPrescription(prescriptionId: number): Promise<RefillRequest[]> {
+    return Array.from(this.refillRequests.values())
+      .filter(request => request.prescriptionId === prescriptionId)
+      .sort((a, b) => {
+        const dateA = a.requestDate ? new Date(a.requestDate).getTime() : 0;
+        const dateB = b.requestDate ? new Date(b.requestDate).getTime() : 0;
+        return dateB - dateA; // Sort by newest first
+      });
+  }
+
+  async createRefillRequest(request: InsertRefillRequest): Promise<RefillRequest> {
+    const id = this.refillRequestIdCounter++;
+    const now = new Date();
+    const newRefillRequest: RefillRequest = {
+      id,
+      userId: request.userId,
+      medicationId: request.medicationId,
+      prescriptionId: request.prescriptionId ?? null,
+      requestDate: now,
+      status: 'pending',
+      quantity: request.quantity ?? 1,
+      notes: request.notes ?? null,
+      lastFilledDate: request.lastFilledDate ?? null,
+      nextRefillDate: request.nextRefillDate ?? null,
+      timesRefilled: request.timesRefilled ?? 0,
+      refillsRemaining: request.refillsRemaining ?? null,
+      refillsAuthorized: request.refillsAuthorized ?? null,
+      autoRefill: request.autoRefill ?? false
+    };
+    this.refillRequests.set(id, newRefillRequest);
+    return newRefillRequest;
+  }
+
+  async updateRefillRequest(id: number, requestData: Partial<InsertRefillRequest>): Promise<RefillRequest | undefined> {
+    const request = await this.getRefillRequest(id);
+    if (!request) return undefined;
+    
+    const updatedRequest: RefillRequest = { ...request, ...requestData };
+    this.refillRequests.set(id, updatedRequest);
+    return updatedRequest;
+  }
+
+  // Refill Notification methods
+  async getRefillNotification(id: number): Promise<RefillNotification | undefined> {
+    return this.refillNotifications.get(id);
+  }
+
+  async getRefillNotificationsByUser(userId: number): Promise<RefillNotification[]> {
+    return Array.from(this.refillNotifications.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => {
+        const dateA = a.sentDate ? new Date(a.sentDate).getTime() : 0;
+        const dateB = b.sentDate ? new Date(b.sentDate).getTime() : 0;
+        return dateB - dateA; // Sort by newest first
+      });
+  }
+
+  async getRefillNotificationsByRefillRequest(refillRequestId: number): Promise<RefillNotification[]> {
+    return Array.from(this.refillNotifications.values())
+      .filter(notification => notification.refillRequestId === refillRequestId)
+      .sort((a, b) => {
+        const dateA = a.sentDate ? new Date(a.sentDate).getTime() : 0;
+        const dateB = b.sentDate ? new Date(b.sentDate).getTime() : 0;
+        return dateB - dateA; // Sort by newest first
+      });
+  }
+
+  async createRefillNotification(notification: InsertRefillNotification): Promise<RefillNotification> {
+    const id = this.refillNotificationIdCounter++;
+    const now = new Date();
+    const newNotification: RefillNotification = {
+      id,
+      message: notification.message,
+      userId: notification.userId,
+      refillRequestId: notification.refillRequestId ?? null,
+      sentDate: now,
+      read: false,
+      notificationType: notification.notificationType
+    };
+    this.refillNotifications.set(id, newNotification);
+    return newNotification;
+  }
+
+  async markRefillNotificationAsRead(id: number): Promise<RefillNotification | undefined> {
+    const notification = await this.getRefillNotification(id);
+    if (!notification) return undefined;
+    
+    const updatedNotification: RefillNotification = { ...notification, read: true };
+    this.refillNotifications.set(id, updatedNotification);
+    return updatedNotification;
+  }
 }
 
 // Database storage implementation
@@ -806,6 +946,78 @@ export class DatabaseStorage implements IStorage {
       .returning();
       
     return updatedCart;
+  }
+
+  // Refill Request methods
+  async getRefillRequest(id: number): Promise<RefillRequest | undefined> {
+    const [request] = await db.select().from(refillRequests).where(eq(refillRequests.id, id));
+    return request;
+  }
+
+  async getRefillRequestsByUser(userId: number): Promise<RefillRequest[]> {
+    return await db
+      .select()
+      .from(refillRequests)
+      .where(eq(refillRequests.userId, userId))
+      .orderBy(desc(refillRequests.requestDate));
+  }
+
+  async getRefillRequestsByPrescription(prescriptionId: number): Promise<RefillRequest[]> {
+    return await db
+      .select()
+      .from(refillRequests)
+      .where(eq(refillRequests.prescriptionId, prescriptionId))
+      .orderBy(desc(refillRequests.requestDate));
+  }
+
+  async createRefillRequest(request: InsertRefillRequest): Promise<RefillRequest> {
+    const [newRequest] = await db.insert(refillRequests).values(request).returning();
+    return newRequest;
+  }
+
+  async updateRefillRequest(id: number, requestData: Partial<InsertRefillRequest>): Promise<RefillRequest | undefined> {
+    const [updatedRequest] = await db
+      .update(refillRequests)
+      .set(requestData)
+      .where(eq(refillRequests.id, id))
+      .returning();
+    return updatedRequest;
+  }
+
+  // Refill Notification methods
+  async getRefillNotification(id: number): Promise<RefillNotification | undefined> {
+    const [notification] = await db.select().from(refillNotifications).where(eq(refillNotifications.id, id));
+    return notification;
+  }
+
+  async getRefillNotificationsByUser(userId: number): Promise<RefillNotification[]> {
+    return await db
+      .select()
+      .from(refillNotifications)
+      .where(eq(refillNotifications.userId, userId))
+      .orderBy(desc(refillNotifications.sentDate));
+  }
+
+  async getRefillNotificationsByRefillRequest(refillRequestId: number): Promise<RefillNotification[]> {
+    return await db
+      .select()
+      .from(refillNotifications)
+      .where(eq(refillNotifications.refillRequestId, refillRequestId))
+      .orderBy(desc(refillNotifications.sentDate));
+  }
+
+  async createRefillNotification(notification: InsertRefillNotification): Promise<RefillNotification> {
+    const [newNotification] = await db.insert(refillNotifications).values(notification).returning();
+    return newNotification;
+  }
+
+  async markRefillNotificationAsRead(id: number): Promise<RefillNotification | undefined> {
+    const [updatedNotification] = await db
+      .update(refillNotifications)
+      .set({ read: true })
+      .where(eq(refillNotifications.id, id))
+      .returning();
+    return updatedNotification;
   }
 }
 

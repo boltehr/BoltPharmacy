@@ -16,6 +16,39 @@ async function updateSchema() {
       ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN DEFAULT FALSE
     `);
     
+    // Create refill_requests table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS refill_requests (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        prescription_id INTEGER REFERENCES prescriptions(id),
+        medication_id INTEGER NOT NULL REFERENCES medications(id),
+        request_date TIMESTAMP DEFAULT NOW(),
+        status TEXT DEFAULT 'pending' NOT NULL,
+        quantity INTEGER DEFAULT 1 NOT NULL,
+        notes TEXT,
+        last_filled_date TIMESTAMP,
+        next_refill_date DATE,
+        times_refilled INTEGER DEFAULT 0,
+        refills_remaining INTEGER,
+        refills_authorized INTEGER,
+        auto_refill BOOLEAN DEFAULT FALSE
+      )
+    `);
+    
+    // Create refill_notifications table if it doesn't exist
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS refill_notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        refill_request_id INTEGER REFERENCES refill_requests(id),
+        message TEXT NOT NULL,
+        sent_date TIMESTAMP DEFAULT NOW(),
+        read BOOLEAN DEFAULT FALSE,
+        notification_type TEXT NOT NULL
+      )
+    `);
+    
     console.log('Schema updated successfully!');
     
     // Close the pool

@@ -11,6 +11,8 @@ import {
   insertOrderSchema,
   insertOrderItemSchema,
   insertInsuranceSchema,
+  insertRefillRequestSchema,
+  insertRefillNotificationSchema,
   type CartItem
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
@@ -279,6 +281,200 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Refill Request routes
+  router.get("/refill-requests/user/:userId", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Check if the authenticated user is requesting their own refill requests
+      if (req.user.id !== Number(req.params.userId)) {
+        return res.status(403).json({ message: "You can only view your own refill requests" });
+      }
+      
+      const refillRequests = await storage.getRefillRequestsByUser(Number(req.params.userId));
+      res.json(refillRequests);
+    } catch (err) {
+      console.error("Error fetching refill requests:", err);
+      res.status(500).json({ message: "Failed to fetch refill requests" });
+    }
+  });
+
+  router.get("/refill-requests/prescription/:prescriptionId", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const refillRequests = await storage.getRefillRequestsByPrescription(Number(req.params.prescriptionId));
+      
+      // Check if the authenticated user owns these refill requests
+      if (refillRequests.length > 0 && req.user.id !== refillRequests[0].userId) {
+        return res.status(403).json({ message: "You can only view your own refill requests" });
+      }
+      
+      res.json(refillRequests);
+    } catch (err) {
+      console.error("Error fetching refill requests by prescription:", err);
+      res.status(500).json({ message: "Failed to fetch refill requests" });
+    }
+  });
+
+  router.get("/refill-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const refillRequest = await storage.getRefillRequest(Number(req.params.id));
+      if (!refillRequest) {
+        return res.status(404).json({ message: "Refill request not found" });
+      }
+      
+      // Check if the authenticated user owns this refill request
+      if (req.user.id !== refillRequest.userId) {
+        return res.status(403).json({ message: "You can only view your own refill requests" });
+      }
+      
+      res.json(refillRequest);
+    } catch (err) {
+      console.error("Error fetching refill request:", err);
+      res.status(500).json({ message: "Failed to fetch refill request" });
+    }
+  });
+
+  router.post("/refill-requests", isAuthenticated, validateRequest(insertRefillRequestSchema), async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      // But let's add an extra check to make TypeScript happy
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Ensure the user can only create refill requests for themselves
+      if (req.user.id !== req.body.userId) {
+        return res.status(403).json({ message: "You can only create refill requests for yourself" });
+      }
+      
+      // Create the refill request
+      const refillRequest = await storage.createRefillRequest(req.body);
+      res.status(201).json(refillRequest);
+      
+      // Create a notification for the user that their refill request was received
+      await storage.createRefillNotification({
+        userId: req.user.id,
+        refillRequestId: refillRequest.id,
+        message: "Your refill request has been received and is being processed.",
+        notificationType: "status_update"
+      });
+    } catch (err) {
+      console.error("Error creating refill request:", err);
+      res.status(500).json({ message: "Failed to create refill request" });
+    }
+  });
+
+  router.put("/refill-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const refillRequest = await storage.getRefillRequest(Number(req.params.id));
+      if (!refillRequest) {
+        return res.status(404).json({ message: "Refill request not found" });
+      }
+      
+      // Check if the authenticated user owns this refill request
+      if (req.user.id !== refillRequest.userId) {
+        return res.status(403).json({ message: "You can only update your own refill requests" });
+      }
+      
+      // Update the refill request
+      const updatedRequest = await storage.updateRefillRequest(Number(req.params.id), req.body);
+      res.json(updatedRequest);
+    } catch (err) {
+      console.error("Error updating refill request:", err);
+      res.status(500).json({ message: "Failed to update refill request" });
+    }
+  });
+
+  // Refill Notification routes
+  router.get("/refill-notifications/user/:userId", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Check if the authenticated user is requesting their own notifications
+      if (req.user.id !== Number(req.params.userId)) {
+        return res.status(403).json({ message: "You can only view your own notifications" });
+      }
+      
+      const notifications = await storage.getRefillNotificationsByUser(Number(req.params.userId));
+      res.json(notifications);
+    } catch (err) {
+      console.error("Error fetching refill notifications:", err);
+      res.status(500).json({ message: "Failed to fetch refill notifications" });
+    }
+  });
+
+  router.get("/refill-notifications/request/:requestId", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const refillRequest = await storage.getRefillRequest(Number(req.params.requestId));
+      if (!refillRequest) {
+        return res.status(404).json({ message: "Refill request not found" });
+      }
+      
+      // Check if the authenticated user owns this refill request
+      if (req.user.id !== refillRequest.userId) {
+        return res.status(403).json({ message: "You can only view notifications for your own refill requests" });
+      }
+      
+      const notifications = await storage.getRefillNotificationsByRefillRequest(Number(req.params.requestId));
+      res.json(notifications);
+    } catch (err) {
+      console.error("Error fetching refill notifications by request:", err);
+      res.status(500).json({ message: "Failed to fetch refill notifications" });
+    }
+  });
+
+  router.post("/refill-notifications/mark-read/:id", isAuthenticated, async (req, res) => {
+    try {
+      // Since we're using isAuthenticated middleware, req.user should always exist
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const notification = await storage.getRefillNotification(Number(req.params.id));
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      // Check if the authenticated user owns this notification
+      if (req.user.id !== notification.userId) {
+        return res.status(403).json({ message: "You can only mark your own notifications as read" });
+      }
+      
+      // Mark the notification as read
+      const updatedNotification = await storage.markRefillNotificationAsRead(Number(req.params.id));
+      res.json(updatedNotification);
+    } catch (err) {
+      console.error("Error marking notification as read:", err);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
   // Special endpoint to create a test user (for development only)
   router.post("/create-test-user", async (_req, res) => {
     try {

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, json, foreignKey, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, json, foreignKey, primaryKey, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -159,12 +159,55 @@ export type CartItem = {
   requiresPrescription: boolean;
 };
 
+// Refill requests schema
+export const refillRequests = pgTable("refill_requests", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
+  medicationId: integer("medication_id").notNull().references(() => medications.id),
+  requestDate: timestamp("request_date").defaultNow(),
+  status: text("status").default("pending").notNull(), // pending, approved, declined, filled
+  quantity: integer("quantity").notNull().default(1),
+  notes: text("notes"),
+  lastFilledDate: timestamp("last_filled_date"), // Track when prescription was last filled
+  nextRefillDate: date("next_refill_date"), // Expected date for next refill
+  timesRefilled: integer("times_refilled").default(0), // Number of times this medication has been refilled
+  refillsRemaining: integer("refills_remaining"), // Number of refills left
+  refillsAuthorized: integer("refills_authorized"), // Total number of refills authorized
+  autoRefill: boolean("auto_refill").default(false), // Whether to automatically process refills
+});
+
+export const insertRefillRequestSchema = createInsertSchema(refillRequests).omit({
+  id: true,
+  requestDate: true,
+  status: true,
+});
+
+// Refill notifications schema
+export const refillNotifications = pgTable("refill_notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  refillRequestId: integer("refill_request_id").references(() => refillRequests.id),
+  message: text("message").notNull(),
+  sentDate: timestamp("sent_date").defaultNow(),
+  read: boolean("read").default(false),
+  notificationType: text("notification_type").notNull(), // reminder, status_update, etc.
+});
+
+export const insertRefillNotificationSchema = createInsertSchema(refillNotifications).omit({
+  id: true,
+  sentDate: true,
+  read: true,
+});
+
 // Define relations between tables
 export const usersRelations = relations(users, ({ many }) => ({
   prescriptions: many(prescriptions),
   orders: many(orders),
   insurance: many(insurance),
   cart: many(cart),
+  refillRequests: many(refillRequests),
+  refillNotifications: many(refillNotifications),
 }));
 
 export const insuranceRelations = relations(insurance, ({ one }) => ({
@@ -174,8 +217,9 @@ export const insuranceRelations = relations(insurance, ({ one }) => ({
   }),
 }));
 
-export const medicationsRelations = relations(medications, ({ many, one }) => ({
+export const medicationsRelations = relations(medications, ({ many }) => ({
   orderItems: many(orderItems),
+  refillRequests: many(refillRequests),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -188,6 +232,7 @@ export const prescriptionsRelations = relations(prescriptions, ({ one, many }) =
     references: [users.id],
   }),
   orders: many(orders),
+  refillRequests: many(refillRequests),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -220,6 +265,33 @@ export const cartRelations = relations(cart, ({ one }) => ({
   }),
 }));
 
+export const refillRequestsRelations = relations(refillRequests, ({ one, many }) => ({
+  user: one(users, {
+    fields: [refillRequests.userId],
+    references: [users.id],
+  }),
+  prescription: one(prescriptions, {
+    fields: [refillRequests.prescriptionId],
+    references: [prescriptions.id],
+  }),
+  medication: one(medications, {
+    fields: [refillRequests.medicationId],
+    references: [medications.id],
+  }),
+  notifications: many(refillNotifications),
+}));
+
+export const refillNotificationsRelations = relations(refillNotifications, ({ one }) => ({
+  user: one(users, {
+    fields: [refillNotifications.userId],
+    references: [users.id],
+  }),
+  refillRequest: one(refillRequests, {
+    fields: [refillNotifications.refillRequestId],
+    references: [refillRequests.id],
+  }),
+}));
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -244,3 +316,9 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 export type Cart = typeof cart.$inferSelect;
 export type InsertCart = z.infer<typeof insertCartSchema>;
+
+export type RefillRequest = typeof refillRequests.$inferSelect;
+export type InsertRefillRequest = z.infer<typeof insertRefillRequestSchema>;
+
+export type RefillNotification = typeof refillNotifications.$inferSelect;
+export type InsertRefillNotification = z.infer<typeof insertRefillNotificationSchema>;
