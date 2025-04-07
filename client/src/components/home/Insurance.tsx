@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Info } from "lucide-react";
+import { Info, ArrowRight } from "lucide-react";
+import { Link } from "wouter";
 
 const Insurance = () => {
   const { user } = useAuth();
@@ -91,7 +92,7 @@ const Insurance = () => {
         <div className="md:flex md:items-center md:justify-between">
           <div className="md:w-1/2 mb-8 md:mb-0 md:pr-10">
             <h2 className="text-2xl font-bold text-neutral-900 sm:text-3xl">
-              Add Your Insurance Details
+              Insurance Information
             </h2>
             <p className="mt-3 text-lg text-neutral-600">
               We work with many insurance providers to help you get the best price on your medications.
@@ -138,90 +139,38 @@ const Insurance = () => {
 
           <div className="md:w-1/2 bg-white p-6 rounded-lg shadow-md">
             <h3 className="text-lg font-medium text-neutral-900 mb-4">
-              Enter Your Insurance Information
+              Manage Your Insurance Information
             </h3>
-
-            <form onSubmit={handleSubmit}>
+            
+            {insuranceData && insuranceData.length > 0 ? (
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="insurance-provider">Insurance Provider</Label>
-                  <Select
-                    value={insurance.provider}
-                    onValueChange={handleSelectChange}
-                  >
-                    <SelectTrigger id="insurance-provider">
-                      <SelectValue placeholder="Select your insurance provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {insuranceProviders.map((provider) => (
-                        <SelectItem key={provider} value={provider}>
-                          {provider}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="member-id">Member ID</Label>
-                  <Input
-                    type="text"
-                    id="member-id"
-                    name="memberId"
-                    value={insurance.memberId}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="group-number">Group Number</Label>
-                  <Input
-                    type="text"
-                    id="group-number"
-                    name="groupNumber"
-                    value={insurance.groupNumber}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="phone-number">Phone Number on Back of Card</Label>
-                  <Input
-                    type="tel"
-                    id="phone-number"
-                    name="phoneNumber"
-                    value={insurance.phoneNumber}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="flex items-start">
-                  <Checkbox
-                    id="primary-insurance"
-                    checked={insurance.isPrimary}
-                    onCheckedChange={handleCheckboxChange}
-                  />
-                  <div className="ml-3 text-sm">
-                    <Label
-                      htmlFor="primary-insurance"
-                      className="font-medium text-neutral-700"
-                    >
-                      This is my primary insurance
-                    </Label>
-                  </div>
-                </div>
-
-                <div>
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={isPending}
-                  >
-                    {isPending ? "Saving..." : "Save Insurance Information"}
-                  </Button>
+                <p className="text-neutral-700">
+                  You currently have {insuranceData.length} insurance plan{insuranceData.length !== 1 ? 's' : ''} on file.
+                </p>
+                
+                <div className="mt-4">
+                  <Link href="/account">
+                    <Button className="w-full flex items-center justify-center">
+                      <span>View and Manage Insurance</span>
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
                 </div>
               </div>
-            </form>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-neutral-700 mb-4">
+                  You haven't added any insurance plans yet. You can add your insurance information from your account page.
+                </p>
+                
+                <Link href="/account">
+                  <Button className="w-full flex items-center justify-center">
+                    <span>Add Insurance Information</span>
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

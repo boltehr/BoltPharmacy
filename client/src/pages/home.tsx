@@ -7,8 +7,11 @@ import OrderTracking from "@/components/home/OrderTracking";
 import Testimonials from "@/components/home/Testimonials";
 import Insurance from "@/components/home/Insurance";
 import { Helmet } from "react-helmet-async";
+import { useAuth } from "@/lib/context/auth";
 
 const Home = () => {
+  const { user } = useAuth();
+  
   return (
     <>
       <Helmet>
@@ -23,7 +26,7 @@ const Home = () => {
       <UploadPrescription />
       <OrderTracking />
       <Testimonials />
-      <Insurance />
+      {user && <Insurance />}
     </>
   );
 };
