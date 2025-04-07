@@ -101,6 +101,18 @@ const Header = () => {
                       <DropdownMenuItem asChild>
                         <Link href="/prescriptions">My Prescriptions</Link>
                       </DropdownMenuItem>
+                      {user.role === 'admin' && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuLabel>Admin</DropdownMenuLabel>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/white-label">White Label Config</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/insurance-providers">Insurance Providers</Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={logout}>
                         Logout

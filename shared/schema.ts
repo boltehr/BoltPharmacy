@@ -29,16 +29,40 @@ export const users = pgTable("users", {
   sexAtBirth: text("sex_at_birth"),
   // Profile completion status
   profileCompleted: boolean("profile_completed").default(false),
+  // User role
+  role: text("role").default("user"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
 
-// Insurance schema
+// Insurance Providers schema (for admin management)
+export const insuranceProviders = pgTable("insurance_providers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  website: text("website"),
+  formularyUrl: text("formulary_url"),
+  isActive: boolean("is_active").default(true),
+  logoUrl: text("logo_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInsuranceProviderSchema = createInsertSchema(insuranceProviders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Patient Insurance schema (linked to users)
 export const insurance = pgTable("insurance", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
+  providerId: integer("provider_id").references(() => insuranceProviders.id),
   provider: text("provider").notNull(),
   memberId: text("member_id").notNull(),
   groupNumber: text("group_number"),
@@ -210,10 +234,18 @@ export const usersRelations = relations(users, ({ many }) => ({
   refillNotifications: many(refillNotifications),
 }));
 
+export const insuranceProvidersRelations = relations(insuranceProviders, ({ many }) => ({
+  insurances: many(insurance),
+}));
+
 export const insuranceRelations = relations(insurance, ({ one }) => ({
   user: one(users, {
     fields: [insurance.userId],
     references: [users.id],
+  }),
+  provider: one(insuranceProviders, {
+    fields: [insurance.providerId],
+    references: [insuranceProviders.id],
   }),
 }));
 
@@ -295,6 +327,9 @@ export const refillNotificationsRelations = relations(refillNotifications, ({ on
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type InsuranceProvider = typeof insuranceProviders.$inferSelect;
+export type InsertInsuranceProvider = z.infer<typeof insertInsuranceProviderSchema>;
 
 export type Insurance = typeof insurance.$inferSelect;
 export type InsertInsurance = z.infer<typeof insertInsuranceSchema>;

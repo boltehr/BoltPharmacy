@@ -13,7 +13,8 @@ async function updateSchema() {
       ADD COLUMN IF NOT EXISTS billing_state TEXT,
       ADD COLUMN IF NOT EXISTS billing_zip_code TEXT,
       ADD COLUMN IF NOT EXISTS same_as_shipping BOOLEAN DEFAULT TRUE,
-      ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN DEFAULT FALSE
+      ADD COLUMN IF NOT EXISTS profile_completed BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'user'
     `);
     
     // Create refill_requests table if it doesn't exist
@@ -46,6 +47,23 @@ async function updateSchema() {
         sent_date TIMESTAMP DEFAULT NOW(),
         read BOOLEAN DEFAULT FALSE,
         notification_type TEXT NOT NULL
+      )
+    `);
+    
+    // Create or update insurance_providers table
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS insurance_providers (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        contact_phone TEXT,
+        contact_email TEXT,
+        website TEXT,
+        formulary_url TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        logo_url TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
       )
     `);
     

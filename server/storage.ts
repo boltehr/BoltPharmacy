@@ -6,6 +6,7 @@ import {
   orders, type Order, type InsertOrder,
   orderItems, type OrderItem, type InsertOrderItem,
   insurance, type Insurance, type InsertInsurance,
+  insuranceProviders, type InsuranceProvider, type InsertInsuranceProvider,
   cart, type Cart, type InsertCart, type CartItem,
   refillRequests, type RefillRequest, type InsertRefillRequest,
   refillNotifications, type RefillNotification, type InsertRefillNotification,
@@ -29,6 +30,14 @@ export interface IStorage {
   
   // Session store
   sessionStore: session.Store;
+  
+  // Insurance Provider methods
+  getInsuranceProvider(id: number): Promise<InsuranceProvider | undefined>;
+  getInsuranceProviderByName(name: string): Promise<InsuranceProvider | undefined>;
+  getInsuranceProviders(activeOnly?: boolean): Promise<InsuranceProvider[]>;
+  createInsuranceProvider(provider: InsertInsuranceProvider): Promise<InsuranceProvider>;
+  updateInsuranceProvider(id: number, provider: Partial<InsertInsuranceProvider>): Promise<InsuranceProvider | undefined>;
+  deleteInsuranceProvider(id: number): Promise<boolean>;
 
   // Medication methods
   getMedication(id: number): Promise<Medication | undefined>;
@@ -61,7 +70,7 @@ export interface IStorage {
   getOrderItems(orderId: number): Promise<OrderItem[]>;
   createOrderItem(orderItem: InsertOrderItem): Promise<OrderItem>;
   
-  // Insurance methods
+  // Patient Insurance methods
   getInsurance(id: number): Promise<Insurance | undefined>;
   getInsurancesByUser(userId: number): Promise<Insurance[]>;
   createInsurance(insurance: InsertInsurance): Promise<Insurance>;
@@ -105,6 +114,7 @@ export class MemStorage implements IStorage {
   private prescriptions: Map<number, Prescription>;
   private orders: Map<number, Order>;
   private orderItems: Map<number, OrderItem[]>;
+  private insuranceProviders: Map<number, InsuranceProvider>;
   private insurances: Map<number, Insurance>;
   private carts: Map<number, Cart>;
   private refillRequests: Map<number, RefillRequest>;
@@ -118,6 +128,7 @@ export class MemStorage implements IStorage {
   private prescriptionIdCounter: number;
   private orderIdCounter: number;
   private orderItemIdCounter: number;
+  private insuranceProviderIdCounter: number;
   private insuranceIdCounter: number;
   private cartIdCounter: number;
   private refillRequestIdCounter: number;
@@ -130,6 +141,7 @@ export class MemStorage implements IStorage {
     this.prescriptions = new Map();
     this.orders = new Map();
     this.orderItems = new Map();
+    this.insuranceProviders = new Map();
     this.insurances = new Map();
     this.carts = new Map();
     this.refillRequests = new Map();
@@ -147,6 +159,7 @@ export class MemStorage implements IStorage {
     this.prescriptionIdCounter = 1;
     this.orderIdCounter = 1;
     this.orderItemIdCounter = 1;
+    this.insuranceProviderIdCounter = 1;
     this.insuranceIdCounter = 1;
     this.cartIdCounter = 1;
     this.refillRequestIdCounter = 1;
@@ -307,6 +320,7 @@ export class MemStorage implements IStorage {
       dateOfBirth: user.dateOfBirth ?? null,
       sexAtBirth: user.sexAtBirth ?? null,
       profileCompleted: user.profileCompleted ?? false,
+      role: user.role ?? "user",
     };
     this.users.set(id, newUser);
     return newUser;
@@ -498,7 +512,72 @@ export class MemStorage implements IStorage {
     return newOrderItem;
   }
   
-  // Insurance methods
+  // Insurance Provider methods
+  async getInsuranceProvider(id: number): Promise<InsuranceProvider | undefined> {
+    return this.insuranceProviders.get(id);
+  }
+  
+  async getInsuranceProviderByName(name: string): Promise<InsuranceProvider | undefined> {
+    return Array.from(this.insuranceProviders.values()).find(provider => provider.name === name);
+  }
+  
+  async getInsuranceProviders(activeOnly = false): Promise<InsuranceProvider[]> {
+    const providers = Array.from(this.insuranceProviders.values());
+    
+    if (activeOnly) {
+      return providers.filter(provider => provider.isActive);
+    }
+    
+    return providers;
+  }
+  
+  async createInsuranceProvider(provider: InsertInsuranceProvider): Promise<InsuranceProvider> {
+    const id = this.insuranceProviderIdCounter++;
+    const now = new Date();
+    
+    const newProvider: InsuranceProvider = {
+      ...provider,
+      id,
+      description: provider.description ?? null,
+      contactPhone: provider.contactPhone ?? null,
+      contactEmail: provider.contactEmail ?? null,
+      website: provider.website ?? null,
+      formularyUrl: provider.formularyUrl ?? null,
+      isActive: provider.isActive ?? true,
+      logoUrl: provider.logoUrl ?? null,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    this.insuranceProviders.set(id, newProvider);
+    return newProvider;
+  }
+  
+  async updateInsuranceProvider(id: number, providerData: Partial<InsertInsuranceProvider>): Promise<InsuranceProvider | undefined> {
+    const provider = await this.getInsuranceProvider(id);
+    if (!provider) return undefined;
+    
+    const now = new Date();
+    const updatedProvider: InsuranceProvider = { 
+      ...provider, 
+      ...providerData,
+      updatedAt: now
+    };
+    
+    this.insuranceProviders.set(id, updatedProvider);
+    return updatedProvider;
+  }
+  
+  async deleteInsuranceProvider(id: number): Promise<boolean> {
+    const exists = this.insuranceProviders.has(id);
+    if (exists) {
+      this.insuranceProviders.delete(id);
+      return true;
+    }
+    return false;
+  }
+  
+  // Patient Insurance methods
   async getInsurance(id: number): Promise<Insurance | undefined> {
     return this.insurances.get(id);
   }
@@ -512,6 +591,10 @@ export class MemStorage implements IStorage {
     const newInsurance: Insurance = { 
       ...insurance, 
       id,
+      userId: insurance.userId,
+      providerId: insurance.providerId ?? null,
+      provider: insurance.provider,
+      memberId: insurance.memberId,
       groupNumber: insurance.groupNumber ?? null,
       phoneNumber: insurance.phoneNumber ?? null,
       isPrimary: insurance.isPrimary ?? null
@@ -974,7 +1057,55 @@ export class DatabaseStorage implements IStorage {
     return newOrderItem;
   }
 
-  // Insurance methods
+  // Insurance Provider methods
+  async getInsuranceProvider(id: number): Promise<InsuranceProvider | undefined> {
+    const [provider] = await db.select().from(insuranceProviders).where(eq(insuranceProviders.id, id));
+    return provider;
+  }
+  
+  async getInsuranceProviderByName(name: string): Promise<InsuranceProvider | undefined> {
+    const [provider] = await db.select().from(insuranceProviders).where(eq(insuranceProviders.name, name));
+    return provider;
+  }
+  
+  async getInsuranceProviders(activeOnly = false): Promise<InsuranceProvider[]> {
+    if (activeOnly) {
+      return await db.select().from(insuranceProviders).where(eq(insuranceProviders.isActive, true));
+    }
+    return await db.select().from(insuranceProviders);
+  }
+  
+  async createInsuranceProvider(provider: InsertInsuranceProvider): Promise<InsuranceProvider> {
+    const [newProvider] = await db.insert(insuranceProviders).values(provider).returning();
+    return newProvider;
+  }
+  
+  async updateInsuranceProvider(id: number, provider: Partial<InsertInsuranceProvider>): Promise<InsuranceProvider | undefined> {
+    const [updatedProvider] = await db
+      .update(insuranceProviders)
+      .set({
+        ...provider,
+        updatedAt: new Date()
+      })
+      .where(eq(insuranceProviders.id, id))
+      .returning();
+    return updatedProvider;
+  }
+  
+  async deleteInsuranceProvider(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(insuranceProviders)
+        .where(eq(insuranceProviders.id, id))
+        .returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error('Error deleting insurance provider:', error);
+      return false;
+    }
+  }
+  
+  // Patient Insurance methods
   async getInsurance(id: number): Promise<Insurance | undefined> {
     const [insuranceData] = await db.select().from(insurance).where(eq(insurance.id, id));
     return insuranceData;

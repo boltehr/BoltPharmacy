@@ -66,6 +66,30 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
   }
 }
 
+// Middleware to check if user is an admin
+export async function isAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
+  try {
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Check if user has admin role
+    if (user.role === 'admin') {
+      next();
+    } else {
+      res.status(403).json({ message: "Admin access required" });
+    }
+  } catch (error) {
+    console.error("Admin check error:", error);
+    res.status(500).json({ message: "Server error during admin check" });
+  }
+}
+
 // Route to register a new user
 export async function register(req: Request, res: Response) {
   try {

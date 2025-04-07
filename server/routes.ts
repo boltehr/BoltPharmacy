@@ -2,7 +2,7 @@ import express, { type Request, Response } from "express";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from './auth';
+import { setupAuth, isAuthenticated, isAdmin } from './auth';
 import { 
   insertUserSchema, 
   insertMedicationSchema,
@@ -11,6 +11,7 @@ import {
   insertOrderSchema,
   insertOrderItemSchema,
   insertInsuranceSchema,
+  insertInsuranceProviderSchema,
   insertRefillRequestSchema,
   insertRefillNotificationSchema,
   insertWhiteLabelSchema,
@@ -235,7 +236,140 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(orderItems);
   });
   
-  // Insurance routes
+  // Insurance Provider management routes (admin only)
+  router.get("/insurance-providers", async (req, res) => {
+    try {
+      const activeOnly = req.query.activeOnly === 'true';
+      const providers = await storage.getInsuranceProviders(activeOnly);
+      res.json(providers);
+    } catch (error) {
+      console.error('Error fetching insurance providers:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  router.get("/insurance-providers/:id", async (req, res) => {
+    try {
+      const provider = await storage.getInsuranceProvider(Number(req.params.id));
+      if (!provider) {
+        return res.status(404).json({ message: 'Insurance provider not found' });
+      }
+      res.json(provider);
+    } catch (error) {
+      console.error('Error fetching insurance provider:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Insurance Providers Endpoints
+  
+  // Get all insurance providers - accessible by anyone
+  router.get("/insurance-providers", async (req, res) => {
+    try {
+      // Get only active providers if not an admin
+      const activeOnly = !req.user || req.user.role !== 'admin';
+      const providers = await storage.getInsuranceProviders(activeOnly);
+      res.json(providers);
+    } catch (error) {
+      console.error('Error fetching insurance providers:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  // Get a specific insurance provider by ID
+  router.get("/insurance-providers/:id", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const provider = await storage.getInsuranceProvider(id);
+      
+      if (!provider) {
+        return res.status(404).json({ message: 'Insurance provider not found' });
+      }
+      
+      // If user is not an admin and the provider is not active, deny access
+      if ((!req.user || req.user.role !== 'admin') && !provider.isActive) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      res.json(provider);
+    } catch (error) {
+      console.error('Error fetching insurance provider:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  router.post("/insurance-providers", isAdmin, validateRequest(insertInsuranceProviderSchema), async (req, res) => {
+    try {
+      // Check if provider with the same name already exists
+      const existingProvider = await storage.getInsuranceProviderByName(req.body.name);
+      if (existingProvider) {
+        return res.status(409).json({ message: 'An insurance provider with this name already exists' });
+      }
+      
+      const provider = await storage.createInsuranceProvider(req.body);
+      res.status(201).json(provider);
+    } catch (error) {
+      console.error('Error creating insurance provider:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  router.patch("/insurance-providers/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const provider = await storage.getInsuranceProvider(id);
+      
+      if (!provider) {
+        return res.status(404).json({ message: 'Insurance provider not found' });
+      }
+      
+      // Parse and validate the update data
+      const parseResult = insertInsuranceProviderSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid insurance provider data", 
+          errors: parseResult.error.errors 
+        });
+      }
+      
+      // If name is being updated, check for conflicts
+      if (parseResult.data.name && parseResult.data.name !== provider.name) {
+        const existingProvider = await storage.getInsuranceProviderByName(parseResult.data.name);
+        if (existingProvider && existingProvider.id !== id) {
+          return res.status(409).json({ message: 'An insurance provider with this name already exists' });
+        }
+      }
+      
+      const updatedProvider = await storage.updateInsuranceProvider(id, parseResult.data);
+      res.json(updatedProvider);
+    } catch (error) {
+      console.error('Error updating insurance provider:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+  
+  router.delete("/insurance-providers/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const provider = await storage.getInsuranceProvider(id);
+      
+      if (!provider) {
+        return res.status(404).json({ message: 'Insurance provider not found' });
+      }
+      
+      const deleted = await storage.deleteInsuranceProvider(id);
+      if (deleted) {
+        res.status(204).send();
+      } else {
+        res.status(500).json({ message: 'Failed to delete insurance provider' });
+      }
+    } catch (error) {
+      console.error('Error deleting insurance provider:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  });
+
+  // Patient Insurance routes
   router.get("/insurance/user/:userId", async (req, res) => {
     const insurances = await storage.getInsurancesByUser(Number(req.params.userId));
     res.json(insurances);
