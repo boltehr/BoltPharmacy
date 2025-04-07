@@ -62,7 +62,6 @@ export const insertInsuranceProviderSchema = createInsertSchema(insuranceProvide
 export const insurance = pgTable("insurance", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  providerId: integer("provider_id").references(() => insuranceProviders.id),
   provider: text("provider").notNull(),
   memberId: text("member_id").notNull(),
   groupNumber: text("group_number"),
@@ -242,10 +241,6 @@ export const insuranceRelations = relations(insurance, ({ one }) => ({
   user: one(users, {
     fields: [insurance.userId],
     references: [users.id],
-  }),
-  provider: one(insuranceProviders, {
-    fields: [insurance.providerId],
-    references: [insuranceProviders.id],
   }),
 }));
 
