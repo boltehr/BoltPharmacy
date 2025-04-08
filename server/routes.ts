@@ -150,22 +150,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   router.put("/users/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = Number(req.params.id);
+      console.log(`Updating user profile for ID: ${userId}`);
+      console.log(`Session user ID: ${req.session.userId}, Request user ID: ${req.user?.id}`);
+      
       // Check if the authenticated user is updating their own profile
-      if (req.user?.id !== Number(req.params.id)) {
+      if (req.user?.id !== userId) {
+        console.log("Forbidden: User trying to update someone else's profile");
         return res.status(403).json({ message: "You can only update your own profile" });
       }
       
       // Filter out sensitive fields that shouldn't be updated directly
       const { password, ...updateData } = req.body;
+      console.log("Profile update data:", JSON.stringify(updateData));
       
       // Perform the update
-      const user = await storage.updateUser(Number(req.params.id), updateData);
+      const user = await storage.updateUser(userId, updateData);
       if (!user) {
+        console.log(`User not found with ID: ${userId}`);
         return res.status(404).json({ message: "User not found" });
       }
       
+      console.log(`Updated user successfully:`, JSON.stringify({
+        id: user.id,
+        email: user.email,
+        profileCompleted: user.profileCompleted
+      }));
+      
       // Update session user data
       if (req.user) {
+        console.log("Updating user in session");
         Object.assign(req.user, user);
       }
       

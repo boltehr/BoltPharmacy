@@ -1802,12 +1802,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const [updatedUser] = await db
-      .update(users)
-      .set(userData)
-      .where(eq(users.id, id))
-      .returning();
-    return updatedUser;
+    console.log(`Database - updateUser called for ID: ${id}`);
+    console.log(`Update data:`, JSON.stringify(userData));
+    
+    try {
+      const [updatedUser] = await db
+        .update(users)
+        .set(userData)
+        .where(eq(users.id, id))
+        .returning();
+      
+      if (updatedUser) {
+        console.log(`Database - User updated successfully, profile complete: ${updatedUser.profileCompleted}`);
+      } else {
+        console.log(`Database - No user returned after update for ID: ${id}`);
+      }
+      
+      return updatedUser;
+    } catch (error) {
+      console.error(`Database - Error updating user:`, error);
+      throw error;
+    }
   }
   
   async updateUserRole(id: number, role: string): Promise<boolean> {

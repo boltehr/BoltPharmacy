@@ -483,10 +483,25 @@ export async function initializeAdminUser() {
 
 export function setupAuth(app: Express) {
   // The admin initialization route is set up below
-  // Set up session middleware
-  app.use((req: Request, _res: Response, next: NextFunction) => {
+  // Set up session middleware to load user data
+  app.use(async (req: Request, _res: Response, next: NextFunction) => {
     if (req.session && req.session.userId) {
-      req.user = { id: req.session.userId } as User;
+      // Load full user object from database instead of just setting the ID
+      try {
+        const user = await storage.getUser(req.session.userId);
+        if (user) {
+          // Remove password before adding to request
+          const { password, ...userWithoutPassword } = user;
+          req.user = userWithoutPassword as User;
+          console.log(`Session middleware - Loaded user ${user.id}, profile complete: ${user.profileCompleted}`);
+        } else {
+          console.log(`Session middleware - User ${req.session.userId} not found`);
+          req.user = { id: req.session.userId } as User;
+        }
+      } catch (error) {
+        console.error(`Session middleware - Error loading user: ${error}`);
+        req.user = { id: req.session.userId } as User;
+      }
     }
     next();
   });
