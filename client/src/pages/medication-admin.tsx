@@ -205,11 +205,17 @@ const MedicationForm = ({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.name}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                {categories && categories.length > 0 ? (
+                  categories.map((category) => (
+                    category.name ? (
+                      <SelectItem key={category.id} value={category.name || `category-${category.id}`}>
+                        {category.name}
+                      </SelectItem>
+                    ) : null
+                  ))
+                ) : (
+                  <SelectItem value="no-category">No categories available</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -595,9 +601,17 @@ const MedicationAdmin = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Categories</SelectItem>
-                  {categories && categories.map((category: any) => (
-                    <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
-                  ))}
+                  {categories && categories.length > 0 ? (
+                    categories.map((category: any) => (
+                      category.name ? (
+                        <SelectItem key={category.id} value={category.name || `category-${category.id}`}>
+                          {category.name}
+                        </SelectItem>
+                      ) : null
+                    ))
+                  ) : (
+                    <SelectItem value="no-categories">No categories available</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
