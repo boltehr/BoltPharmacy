@@ -29,6 +29,7 @@ import InsuranceProviderAdmin from "@/pages/insurance-provider-admin";
 import MedicationAdmin from "@/pages/medication-admin";
 import UserAdmin from "@/pages/user-admin";
 import PrescriptionVerification from "@/pages/prescription-verification";
+import OrderAdmin from "@/pages/order-admin";
 
 function Router() {
   return (
@@ -90,6 +91,11 @@ function Router() {
       <Route path="/admin/prescriptions/verification">
         <ProtectedRoute>
           <PrescriptionVerification />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/orders">
+        <ProtectedRoute>
+          <OrderAdmin />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />

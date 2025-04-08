@@ -84,6 +84,7 @@ export interface IStorage {
   getOrder(id: number): Promise<Order | undefined>;
   getOrdersByUser(userId: number): Promise<Order[]>;
   getOrdersByPrescription(prescriptionId: number): Promise<Order[]>;
+  getOrdersByStatus(status: string, limit?: number, offset?: number): Promise<{ orders: Order[], total: number }>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | undefined>;
   
@@ -639,6 +640,21 @@ export class MemStorage implements IStorage {
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
         return dateB - dateA; // Sort by newest first
       });
+  }
+  
+  async getOrdersByStatus(status: string, limit: number = 20, offset: number = 0): Promise<{ orders: Order[], total: number }> {
+    const filteredOrders = Array.from(this.orders.values())
+      .filter(order => order.status === status)
+      .sort((a, b) => {
+        const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+        const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+        return dateB - dateA; // Sort by newest first
+      });
+    
+    return {
+      orders: filteredOrders.slice(offset, offset + limit),
+      total: filteredOrders.length
+    };
   }
   
   async createOrder(order: InsertOrder): Promise<Order> {
@@ -1353,6 +1369,28 @@ export class DatabaseStorage implements IStorage {
       .from(orders)
       .where(eq(orders.prescriptionId, prescriptionId))
       .orderBy(desc(orders.orderDate));
+  }
+  
+  async getOrdersByStatus(status: string, limit: number = 20, offset: number = 0): Promise<{ orders: Order[], total: number }> {
+    // Get total count
+    const [{ count }] = await db
+      .select({ count: sql`count(*)`.mapWith(Number) })
+      .from(orders)
+      .where(eq(orders.status, status));
+    
+    // Get paginated results
+    const results = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.status, status))
+      .orderBy(desc(orders.orderDate))
+      .limit(limit)
+      .offset(offset);
+      
+    return {
+      orders: results,
+      total: count
+    };
   }
 
   async createOrder(order: InsertOrder): Promise<Order> {

@@ -338,6 +338,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get orders by status (admin only)
+  router.get("/orders/status/:status", isAdmin, async (req, res) => {
+    try {
+      const status = req.params.status;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const offset = req.query.offset ? Number(req.query.offset) : 0;
+      
+      // Get orders by status
+      const { orders, total } = await storage.getOrdersByStatus(status, limit, offset);
+      
+      // Enhance orders with user and prescription information
+      const enhancedOrders = await Promise.all(orders.map(async (order) => {
+        const user = order.userId ? await storage.getUser(order.userId) : null;
+        const prescription = order.prescriptionId ? await storage.getPrescription(order.prescriptionId) : null;
+        const orderItems = await storage.getOrderItems(order.id);
+        
+        return {
+          ...order,
+          user: user ? {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone
+          } : null,
+          prescription: prescription ? {
+            id: prescription.id,
+            verificationStatus: prescription.verificationStatus,
+            uploadDate: prescription.uploadDate,
+            verifiedBy: prescription.verifiedBy,
+            revoked: prescription.revoked
+          } : null,
+          items: orderItems
+        };
+      }));
+      
+      res.json({ 
+        orders: enhancedOrders, 
+        total,
+        status,
+        limit,
+        offset
+      });
+    } catch (error) {
+      console.error("Error fetching orders by status:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   // Verify a prescription (admin only)
   router.post("/prescriptions/:id/verify", isAdmin, async (req, res) => {
     try {
@@ -480,29 +529,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   router.post("/orders", validateRequest(insertOrderSchema), async (req, res) => {
     try {
-      // Create initial order
-      let order = await storage.createOrder(req.body);
+      // Create initial order with pending status
+      const orderData = {
+        ...req.body,
+        status: 'pending' // Always set initial status to pending
+      };
       
-      // For demo purposes: auto-transition the order to shipped with tracking
-      // after a small delay to simulate real-world processing
-      setTimeout(async () => {
-        try {
-          // Generate a random tracking number and carrier
-          const trackingNumber = "1Z" + Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
-          const carrier = Math.random() > 0.5 ? "ups" : "fedex";
+      let order = await storage.createOrder(orderData);
+      
+      // If order has a prescription, check if it's already verified
+      if (order.prescriptionId) {
+        const prescription = await storage.getPrescription(order.prescriptionId);
+        
+        if (prescription && prescription.verificationStatus === 'verified' && !prescription.revoked) {
+          console.log(`Prescription ${prescription.id} already verified - order can be processed`);
           
-          // Update the order with shipping info
-          await storage.updateOrder(order.id, { 
-            status: "shipped", 
-            trackingNumber, 
-            carrier 
-          });
-          
-          console.log(`Demo: Order #${order.id} auto-updated to shipped status with tracking`);
-        } catch (error) {
-          console.error("Failed to auto-update order status:", error);
+          // In a real application, this is where we would queue the order for pharmacist review
+          // rather than auto-marking it as shipped
+        } else {
+          console.log(`Order ${order.id} requires prescription verification before shipping`);
         }
-      }, 30000); // Update after 30 seconds
+      } else if (req.body.requiresPrescription) {
+        // Order contains prescription-required medications but no prescription attached
+        console.log(`Order ${order.id} requires a prescription but none was provided`);
+      }
+      
+      // Send notification email to user (mock implementation)
+      const userEmail = req.user?.email;
+      if (userEmail) {
+        console.log(`Notification email would be sent to ${userEmail}: Your order #${order.id} has been received and is pending approval.`);
+      }
       
       res.status(201).json(order);
     } catch (err) {
@@ -516,6 +572,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Order not found" });
     }
     res.json(order);
+  });
+  
+  // Admin endpoint to approve and ship an order
+  router.post("/orders/:id/approve", isAdmin, async (req, res) => {
+    try {
+      const orderId = Number(req.params.id);
+      
+      // Get the order
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // If order has prescription, verify it's approved
+      if (order.prescriptionId) {
+        const prescription = await storage.getPrescription(order.prescriptionId);
+        
+        if (!prescription) {
+          return res.status(400).json({ message: "Associated prescription not found" });
+        }
+        
+        if (prescription.verificationStatus !== 'verified' || prescription.revoked) {
+          return res.status(400).json({ 
+            message: "Cannot approve order: Prescription has not been verified or has been revoked",
+            prescriptionStatus: prescription.verificationStatus,
+            revoked: prescription.revoked
+          });
+        }
+      }
+      
+      // Generate tracking information
+      const trackingNumber = "1Z" + Math.floor(Math.random() * 10000000000).toString().padStart(10, '0');
+      const carrier = Math.random() > 0.5 ? "ups" : "fedex";
+      
+      // Update the order to shipped status
+      const updatedOrder = await storage.updateOrder(orderId, {
+        status: "shipped",
+        trackingNumber,
+        carrier
+      });
+      
+      if (!updatedOrder) {
+        return res.status(500).json({ message: "Failed to update order" });
+      }
+      
+      // Send notification to user (mock implementation)
+      const user = await storage.getUser(order.userId);
+      if (user && user.email) {
+        console.log(`Notification email would be sent to ${user.email}: Your order #${order.id} has been approved and shipped. Tracking number: ${trackingNumber} (${carrier})`);
+      }
+      
+      res.json({
+        message: "Order approved and shipped",
+        order: updatedOrder
+      });
+    } catch (error) {
+      console.error("Error approving order:", error);
+      res.status(500).json({ message: "Failed to approve order" });
+    }
   });
   
   // Order items routes

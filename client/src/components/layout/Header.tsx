@@ -120,6 +120,9 @@ const Header = () => {
                           <DropdownMenuItem asChild>
                             <Link href="/admin/prescriptions/verification">Prescription Verification</Link>
                           </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href="/admin/orders">Order Management</Link>
+                          </DropdownMenuItem>
                         </>
                       )}
                       <DropdownMenuSeparator />
