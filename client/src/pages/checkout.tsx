@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/button";
 import CheckoutForm from "@/components/checkout/CheckoutForm";
 
 const Checkout = () => {
-  const { cart } = useCart();
+  const { cartItems } = useCart();
   const { user } = useAuth();
   const [, navigate] = useLocation();
   
   // Check if user has completed profile
   useEffect(() => {
-    if (user && !user.profileCompleted) {
+    if (user && !user.isProfileComplete) {
       // Redirect to profile completion page with return URL
       navigate(`/complete-profile?redirect=${encodeURIComponent('/checkout')}`);
     }
@@ -42,7 +42,7 @@ const Checkout = () => {
     );
   }
   
-  if (cart.length === 0) {
+  if (cartItems.length === 0) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <Helmet>
