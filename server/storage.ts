@@ -397,11 +397,17 @@ export class MemStorage implements IStorage {
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    // Make comparison case-insensitive
+    return Array.from(this.users.values()).find(
+      user => user.username && user.username.toLowerCase() === username.toLowerCase()
+    );
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.email === email);
+    // Make comparison case-insensitive
+    return Array.from(this.users.values()).find(
+      user => user.email && user.email.toLowerCase() === email.toLowerCase()
+    );
   }
   
   async getAllUsers(): Promise<User[]> {
