@@ -10,6 +10,8 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Login form schema
 const loginFormSchema = z.object({
@@ -47,6 +49,9 @@ const registerFormSchema = z.object({
     }, {
       message: "Please enter a valid cell phone number (e.g., 555-123-4567)"
     }),
+  termsAgreed: z.boolean().refine(val => val === true, {
+    message: "You must agree to the Terms & Conditions and Privacy Policy"
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -77,6 +82,7 @@ export default function AuthPage() {
       password: "",
       confirmPassword: "",
       phone: "",
+      termsAgreed: false,
     },
   });
   
@@ -221,7 +227,7 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>Password</FormLabel>
                           <FormControl>
-                            <Input type="password" placeholder="••••••••" {...field} />
+                            <PasswordInput {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -269,7 +275,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
+                          <PasswordInput {...field} />
                         </FormControl>
                         <div className="text-xs text-muted-foreground mt-1">
                           Must be at least 8 characters with uppercase, lowercase, number & special character
@@ -285,7 +291,7 @@ export default function AuthPage() {
                       <FormItem>
                         <FormLabel>Confirm Password</FormLabel>
                         <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
+                          <PasswordInput {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -304,6 +310,29 @@ export default function AuthPage() {
                           Mobile number for SMS delivery notifications and order updates
                         </div>
                         <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={registerForm.control}
+                    name="termsAgreed"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4 border mt-4">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-sm font-normal">
+                            I am at least 18 years old and agree to{" "}
+                            <a href="/terms" className="text-primary hover:underline">Terms & Conditions</a>{" "}
+                            and{" "}
+                            <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
+                          </FormLabel>
+                          <FormMessage />
+                        </div>
                       </FormItem>
                     )}
                   />

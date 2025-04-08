@@ -76,6 +76,17 @@ const Header = () => {
                   {t("common.medications")}
                 </a>
               </Link>
+              <Link href="/faq">
+                <a
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    isActive("/faq")
+                      ? "border-primary text-primary"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                >
+                  {t("common.faq")}
+                </a>
+              </Link>
               {user && (
                 <>
                   <Link href="/prescriptions">
@@ -320,6 +331,18 @@ const Header = () => {
               onClick={() => setIsOpen(false)}
             >
               {t("common.medications")}
+            </a>
+          </Link>
+          <Link href="/faq">
+            <a
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive("/faq")
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent hover:border-primary/50 hover:text-primary/90"
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              {t("common.faq")}
             </a>
           </Link>
           {user && (

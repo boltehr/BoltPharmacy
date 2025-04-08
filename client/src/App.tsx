@@ -26,6 +26,7 @@ import CompleteProfile from "@/pages/complete-profile";
 import Allergies from "@/pages/allergies";
 import UserMedications from "@/pages/user-medications";
 import PaymentMethods from "@/pages/payment-methods";
+import FAQ from "@/pages/faq";
 
 // Admin components
 import WhiteLabelAdmin from "@/pages/white-label-admin";
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/medications/:id" component={MedicationDetail} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/faq" component={FAQ} />
       <Route path="/complete-profile">
         <ProtectedRoute requireProfileComplete={false}>
           <CompleteProfile />
