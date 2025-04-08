@@ -21,12 +21,19 @@ const loginFormSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-// Register form schema with strong password requirements
+// Register form schema with strong password requirements and confirmation
 const registerFormSchema = z.object({
   email: z.string()
     .email("Please enter a valid email address")
     .refine(email => email.includes("@") && email.includes("."), {
       message: "Please enter a valid email address with domain (e.g., name@example.com)"
+    })
+    // Validate that the email domain actually exists (basic check)
+    .refine(email => {
+      const domain = email.split('@')[1];
+      return domain && domain.split('.').length >= 2 && domain.split('.')[1].length >= 2;
+    }, {
+      message: "Please enter an email with a valid domain"
     }),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
@@ -42,6 +49,16 @@ const registerFormSchema = z.object({
     .refine(password => /[^A-Za-z0-9]/.test(password), {
       message: "Password must contain at least one special character"
     }),
+  confirmPassword: z.string()
+    .min(1, "Please confirm your password"),
+  phone: z.string()
+    .optional()
+    .refine(val => !val || /^\+?[1-9]\d{9,14}$/.test(val), {
+      message: "Please enter a valid phone number"
+    }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 type LoginFormValues = z.infer<typeof loginFormSchema>;
@@ -66,13 +83,18 @@ export default function AuthPage() {
     defaultValues: {
       email: "",
       password: "",
+      confirmPassword: "",
+      phone: "",
     },
   });
 
   // Submit handlers
   const onLoginSubmit = async (values: LoginFormValues) => {
     try {
-      await login(values.email, values.password);
+      await login({
+        email: values.email,
+        password: values.password
+      });
     } catch (error) {
       console.error("Login failed:", error);
     }
@@ -147,6 +169,16 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
+                  <div className="flex justify-end mb-2">
+                    <Button 
+                      variant="link" 
+                      className="p-0 h-auto text-xs" 
+                      type="button"
+                      onClick={() => alert("Forgot password functionality will be implemented soon!")}
+                    >
+                      Forgot password?
+                    </Button>
+                  </div>
                   <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
                     {loginForm.formState.isSubmitting ? "Signing in..." : "Sign In"}
                   </Button>
@@ -180,6 +212,35 @@ export default function AuthPage() {
                         <FormControl>
                           <Input type="password" placeholder="••••••••" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={registerForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="••••••••" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={registerForm.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number (optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+1 555 123 4567" {...field} />
+                        </FormControl>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          For delivery notifications and order updates
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
