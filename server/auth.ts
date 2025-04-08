@@ -54,7 +54,15 @@ async function hashPassword(password: string): Promise<string> {
 
 // Helper to compare passwords
 async function comparePasswords(providedPassword: string, storedPassword: string): Promise<boolean> {
-  return compare(providedPassword, storedPassword);
+  console.log(`Comparing passwords - Provided: ${providedPassword.substring(0, 3)}***, Stored: ${storedPassword.substring(0, 10)}...`);
+  try {
+    const result = await compare(providedPassword, storedPassword);
+    console.log(`Password comparison with bcrypt result: ${result}`);
+    return result;
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
 }
 
 // Middleware to check if a user is authenticated
@@ -229,14 +237,21 @@ export async function login(req: Request, res: Response) {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
+    console.log(`Login attempt for email: ${email}`);
+    
     // Find the user by email
     const user = await storage.getUserByEmail(email);
     if (!user) {
+      console.log(`User not found with email: ${email}`);
       return res.status(401).json({ message: "Invalid email or password" });
     }
+    
+    console.log(`User found: ${user.username}, role: ${user.role}, stored password: ${user.password?.substring(0, 10)}...`);
 
     // Check the password
     const isPasswordValid = await comparePasswords(password, user.password);
+    console.log(`Password comparison result: ${isPasswordValid}`);
+    
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
