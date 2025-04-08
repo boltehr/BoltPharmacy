@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { WhiteLabelConfig } from "@/lib/context/whiteLabel";
 import { Button } from "@/components/ui/button";
 import { Pill, ArrowRight, Box, Truck, User } from "lucide-react";
+import MedicationCard from "@/components/medications/MedicationCard";
 
 interface MedicationCategory {
   id: number;
@@ -132,57 +133,19 @@ const Home = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {popularMedications.map((medication) => (
-                <Link 
+                <MedicationCard 
                   key={medication.id} 
-                  href={`/medications/${medication.id}`}
-                >
-                  <a className="group border rounded-lg overflow-hidden transition-shadow hover:shadow-md">
-                    <div className="aspect-w-3 aspect-h-2 bg-muted">
-                      {medication.imageUrl ? (
-                        <img
-                          src={medication.imageUrl}
-                          alt={medication.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-primary/5">
-                          <Pill className="h-12 w-12 text-primary/30" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-medium text-lg group-hover:text-primary transition-colors">
-                        {medication.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {medication.dosage}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <div>
-                          {medication.discount_price ? (
-                            <div className="flex items-center">
-                              <span className="text-sm line-through text-muted-foreground mr-2">
-                                ${medication.price.toFixed(2)}
-                              </span>
-                              <span className="font-bold text-primary">
-                                ${medication.discount_price.toFixed(2)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="font-bold">
-                              ${medication.price.toFixed(2)}
-                            </span>
-                          )}
-                        </div>
-                        {medication.generic && (
-                          <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                            Generic
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </a>
-                </Link>
+                  medication={{
+                    id: medication.id,
+                    name: medication.name,
+                    price: medication.discount_price || medication.price,
+                    retailPrice: medication.discount_price ? medication.price : undefined,
+                    genericName: medication.generic ? medication.name : undefined,
+                    inStock: true,
+                    requiresPrescription: false,
+                    uses: medication.dosage
+                  }}
+                />
               ))}
             </div>
           )}
