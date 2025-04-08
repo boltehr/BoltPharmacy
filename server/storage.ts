@@ -64,11 +64,10 @@ export interface IStorage {
   
   // Prescription verification methods
   verifyPrescription(id: number, verifierId: number, verificationData: {
-    verificationStatus: string,
+    status: string,
     verificationMethod: string,
     verificationNotes?: string,
-    expirationDate?: Date,
-    status?: string
+    expirationDate?: Date
   }): Promise<Prescription | undefined>;
   
   revokePrescription(id: number, reason: string): Promise<Prescription | undefined>;
@@ -460,11 +459,11 @@ export class MemStorage implements IStorage {
     let prescriptions = Array.from(this.prescriptions.values());
     
     if (status) {
-      // Filter by verification status if provided
-      prescriptions = prescriptions.filter(prescription => prescription.verificationStatus === status);
+      // Filter by status if provided
+      prescriptions = prescriptions.filter(prescription => prescription.status === status);
     } else {
-      // Default to showing unverified prescriptions
-      prescriptions = prescriptions.filter(prescription => prescription.verificationStatus === "unverified");
+      // Default to showing pending prescriptions
+      prescriptions = prescriptions.filter(prescription => prescription.status === "pending");
     }
     
     // Sort by upload date, newest first
@@ -492,7 +491,6 @@ export class MemStorage implements IStorage {
       fileUrl: prescription.fileUrl ?? null,
       notes: prescription.notes ?? null,
       // Added default values for verification fields
-      verificationStatus: "unverified",
       verifiedBy: null,
       verificationDate: null,
       verificationMethod: null,
@@ -527,11 +525,10 @@ export class MemStorage implements IStorage {
   
   // Prescription verification methods
   async verifyPrescription(id: number, verifierId: number, verificationData: {
-    verificationStatus: string,
+    status: string,
     verificationMethod: string,
     verificationNotes?: string,
-    expirationDate?: Date,
-    status?: string
+    expirationDate?: Date
   }): Promise<Prescription | undefined> {
     const prescription = await this.getPrescription(id);
     if (!prescription) return undefined;
@@ -543,14 +540,13 @@ export class MemStorage implements IStorage {
     
     const updatedPrescription: Prescription = { 
       ...prescription,
-      verificationStatus: verificationData.verificationStatus,
       verifiedBy: verifierId,
       verificationDate: now,
       verificationMethod: verificationData.verificationMethod,
       verificationNotes: verificationData.verificationNotes ?? null,
       expirationDate: verificationData.expirationDate ?? defaultExpirationDate,
-      // Update the main status as well if provided
-      status: verificationData.status ?? prescription.status
+      // Update the status
+      status: verificationData.status
     };
     
     this.prescriptions.set(id, updatedPrescription);
@@ -595,9 +591,9 @@ export class MemStorage implements IStorage {
       return { valid: false, reason: "Prescription not found" };
     }
     
-    // Check if prescription is verified
-    if (prescription.verificationStatus !== "verified") {
-      return { valid: false, reason: "Prescription has not been verified" };
+    // Check if prescription is approved
+    if (prescription.status !== "approved") {
+      return { valid: false, reason: "Prescription has not been approved" };
     }
     
     // Check if prescription is revoked
@@ -1209,7 +1205,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(prescriptions)
-        .where(eq(prescriptions.verificationStatus, status))
+        .where(eq(prescriptions.status, status))
         .orderBy(desc(prescriptions.uploadDate))
         .limit(limit)
         .offset(offset);
@@ -1217,7 +1213,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(prescriptions)
-        .where(eq(prescriptions.verificationStatus, "unverified"))
+        .where(eq(prescriptions.status, "pending"))
         .orderBy(desc(prescriptions.uploadDate))
         .limit(limit)
         .offset(offset);
@@ -1230,7 +1226,7 @@ export class DatabaseStorage implements IStorage {
     
     const [newPrescription] = await db.insert(prescriptions).values({
       ...prescription,
-      verificationStatus: "unverified",
+      status: prescription.status || "pending",
       securityCode: securityCode,
       revoked: false
     }).returning();
@@ -1259,11 +1255,10 @@ export class DatabaseStorage implements IStorage {
   
   // Prescription verification methods
   async verifyPrescription(id: number, verifierId: number, verificationData: {
-    verificationStatus: string,
+    status: string,
     verificationMethod: string,
     verificationNotes?: string,
-    expirationDate?: Date,
-    status?: string
+    expirationDate?: Date
   }): Promise<Prescription | undefined> {
     const now = new Date();
     // Calculate default expiration date (1 year from verification)
@@ -1273,13 +1268,12 @@ export class DatabaseStorage implements IStorage {
     const [updatedPrescription] = await db
       .update(prescriptions)
       .set({
-        verificationStatus: verificationData.verificationStatus,
+        status: verificationData.status,
         verifiedBy: verifierId,
         verificationDate: now,
         verificationMethod: verificationData.verificationMethod,
         verificationNotes: verificationData.verificationNotes ?? null,
-        expirationDate: verificationData.expirationDate ?? defaultExpirationDate,
-        status: verificationData.status ?? "approved" // Default to approved if status not provided
+        expirationDate: verificationData.expirationDate ?? defaultExpirationDate
       })
       .where(eq(prescriptions.id, id))
       .returning();
@@ -1330,9 +1324,9 @@ export class DatabaseStorage implements IStorage {
       return { valid: false, reason: "Prescription not found" };
     }
     
-    // Check if prescription is verified
-    if (prescription.verificationStatus !== "verified") {
-      return { valid: false, reason: "Prescription has not been verified" };
+    // Check if prescription is approved
+    if (prescription.status !== "approved") {
+      return { valid: false, reason: "Prescription has not been approved" };
     }
     
     // Check if prescription is revoked
@@ -1345,7 +1339,7 @@ export class DatabaseStorage implements IStorage {
       return { valid: false, reason: "Prescription has expired" };
     }
     
-    // For this demo, we'll consider all medications valid for any verified prescription
+    // For this demo, we'll consider all medications valid for any approved prescription
     return { valid: true };
   }
 

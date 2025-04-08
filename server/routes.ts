@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } : null,
           prescription: prescription ? {
             id: prescription.id,
-            verificationStatus: prescription.verificationStatus,
+            status: prescription.status,
             uploadDate: prescription.uploadDate,
             verifiedBy: prescription.verifiedBy,
             revoked: prescription.revoked
@@ -398,20 +398,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Validate request body
-      const { verificationStatus, verificationMethod, verificationNotes, expirationDate, status } = req.body;
+      const { status, verificationMethod, verificationNotes, expirationDate } = req.body;
       
-      if (!verificationStatus || !verificationMethod) {
+      if (!status || !verificationMethod) {
         return res.status(400).json({ 
-          message: "Missing required fields: verificationStatus and verificationMethod are required" 
+          message: "Missing required fields: status and verificationMethod are required" 
         });
       }
       
       const prescription = await storage.verifyPrescription(prescriptionId, verifierId, {
-        verificationStatus,
+        status,
         verificationMethod,
         verificationNotes,
-        expirationDate: expirationDate ? new Date(expirationDate) : undefined,
-        status
+        expirationDate: expirationDate ? new Date(expirationDate) : undefined
       });
       
       if (!prescription) {
@@ -541,7 +540,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (order.prescriptionId) {
         const prescription = await storage.getPrescription(order.prescriptionId);
         
-        if (prescription && prescription.verificationStatus === 'verified' && !prescription.revoked) {
+        if (prescription && prescription.status === 'approved' && !prescription.revoked) {
           console.log(`Prescription ${prescription.id} already verified - order can be processed`);
           
           // In a real application, this is where we would queue the order for pharmacist review
@@ -593,10 +592,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(400).json({ message: "Associated prescription not found" });
         }
         
-        if (prescription.verificationStatus !== 'verified' || prescription.revoked) {
+        if (prescription.status !== 'approved' || prescription.revoked) {
           return res.status(400).json({ 
-            message: "Cannot approve order: Prescription has not been verified or has been revoked",
-            prescriptionStatus: prescription.verificationStatus,
+            message: "Cannot approve order: Prescription has not been approved or has been revoked",
+            prescriptionStatus: prescription.status,
             revoked: prescription.revoked
           });
         }
