@@ -5,10 +5,11 @@ import { apiRequest } from "../queryClient";
 import { useToast } from "../../hooks/use-toast";
 
 export interface CartItem {
-  id: number;
+  medicationId: number;  // This is what the server uses
+  id?: number;           // This is for backward compatibility 
   name: string;
   price: number;
-  dosage: string;
+  dosage?: string;       // Optional to match actual structure
   quantity: number;
   imageUrl?: string;
   requiresPrescription: boolean;

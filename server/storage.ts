@@ -613,9 +613,9 @@ export class MemStorage implements IStorage {
     const prescription = this.prescriptions.get(id);
     
     if (prescription) {
-      // Add verificationStatus field if missing based on other fields
-      if (prescription.verificationStatus === undefined) {
-        prescription.verificationStatus = prescription.verifiedBy ? "verified" : "unverified";
+      // Status is now used instead of verificationStatus
+      if (prescription.status === "pending") {
+        prescription.status = prescription.verifiedBy ? "approved" : "pending";
       }
     }
     
@@ -626,9 +626,9 @@ export class MemStorage implements IStorage {
     const prescriptions = Array.from(this.prescriptions.values())
       .filter(prescription => prescription.userId === userId)
       .map(prescription => {
-        // Add verificationStatus field if missing based on other fields
-        if (prescription.verificationStatus === undefined) {
-          prescription.verificationStatus = prescription.verifiedBy ? "verified" : "unverified";
+        // Status is now used instead of verificationStatus
+        if (prescription.status === "pending" && prescription.verifiedBy) {
+          prescription.status = "approved";
         }
         return prescription;
       });
@@ -639,9 +639,9 @@ export class MemStorage implements IStorage {
   async getPrescriptionsForVerification(status?: string, limit = 20, offset = 0): Promise<Prescription[]> {
     let prescriptions = Array.from(this.prescriptions.values())
       .map(prescription => {
-        // Add verificationStatus field if missing based on other fields
-        if (prescription.verificationStatus === undefined) {
-          prescription.verificationStatus = prescription.verifiedBy ? "verified" : "unverified";
+        // Status is now used instead of verificationStatus
+        if (prescription.status === "pending" && prescription.verifiedBy) {
+          prescription.status = "approved";
         }
         return prescription;
       });
@@ -683,7 +683,6 @@ export class MemStorage implements IStorage {
       verificationDate: null,
       verificationMethod: null,
       verificationNotes: null,
-      verificationStatus: "unverified", // Set default verification status
       expirationDate: null,
       securityCode,
       revoked: false,
@@ -733,7 +732,6 @@ export class MemStorage implements IStorage {
       verificationDate: now,
       verificationMethod: verificationData.verificationMethod,
       verificationNotes: verificationData.verificationNotes ?? null,
-      verificationStatus: "verified", // Set verification status to verified
       expirationDate: verificationData.expirationDate ?? defaultExpirationDate,
       // Update the status
       status: verificationData.status
@@ -751,7 +749,6 @@ export class MemStorage implements IStorage {
       ...prescription,
       revoked: true,
       revokedReason: reason,
-      verificationStatus: "failed", // Mark verification as failed
       status: 'rejected' // Update the main status as well
     };
     
@@ -831,7 +828,7 @@ export class MemStorage implements IStorage {
   
   async getOrdersByStatus(status: string, limit: number = 20, offset: number = 0): Promise<{ orders: Order[], total: number }> {
     const filteredOrders = Array.from(this.orders.values())
-      .filter(order => status === 'all' ? true : order.status === status)
+      .filter(order => status === 'all' ? true : (order.status ?? 'pending') === status)
       .sort((a, b) => {
         const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
@@ -866,7 +863,7 @@ export class MemStorage implements IStorage {
         if (order.id.toString().includes(lowerCaseSearch)) return true;
         
         // Search by order status
-        if (order.status.toLowerCase().includes(lowerCaseSearch)) return true;
+        if (order.status && order.status.toLowerCase().includes(lowerCaseSearch)) return true;
         
         // Search by tracking number
         if (order.trackingNumber && order.trackingNumber.toLowerCase().includes(lowerCaseSearch)) return true;

@@ -135,7 +135,6 @@ export const prescriptions = pgTable("prescriptions", {
   verificationDate: timestamp("verification_date"),
   verificationMethod: text("verification_method"), // manual, automated, phone
   verificationNotes: text("verification_notes"),
-  verificationStatus: text("verification_status").default("unverified"), // unverified, verified, failed
   expirationDate: timestamp("expiration_date"), // When the prescription expires
   securityCode: text("security_code"), // Unique code for additional verification
   revoked: boolean("revoked").default(false), // If prescription was revoked after approval
@@ -147,7 +146,6 @@ export const insertPrescriptionSchema = createInsertSchema(prescriptions).omit({
   uploadDate: true,
   verifiedBy: true,
   verificationDate: true,
-  verificationStatus: true,
   securityCode: true,
   revoked: true,
 });

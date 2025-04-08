@@ -248,7 +248,11 @@ const CompleteProfile = () => {
   
   // Redirect already if user is already authenticated and has completed profile
   if (user?.profileCompleted) {
-    return <Redirect to={redirectTo} />;
+    // Fix to prevent infinite redirect loop: just navigate directly instead of using <Redirect>
+    setTimeout(() => {
+      navigate(redirectTo);
+    }, 100);
+    return null;
   }
   
   if (isLoading) {
