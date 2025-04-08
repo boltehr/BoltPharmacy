@@ -26,6 +26,7 @@ import CompleteProfile from "@/pages/complete-profile";
 // Admin components
 import WhiteLabelAdmin from "@/pages/white-label-admin";
 import InsuranceProviderAdmin from "@/pages/insurance-provider-admin";
+import MedicationAdmin from "@/pages/medication-admin";
 
 function Router() {
   return (
@@ -72,6 +73,11 @@ function Router() {
       <Route path="/admin/insurance-providers">
         <ProtectedRoute>
           <InsuranceProviderAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/medications">
+        <ProtectedRoute>
+          <MedicationAdmin />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />

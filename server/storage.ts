@@ -984,25 +984,34 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return updatedMedication;
   }
-
+  
   // Category methods
   async getCategory(id: number): Promise<Category | undefined> {
     const [category] = await db.select().from(categories).where(eq(categories.id, id));
     return category;
   }
-
+  
   async getCategoryByName(name: string): Promise<Category | undefined> {
     const [category] = await db.select().from(categories).where(eq(categories.name, name));
     return category;
   }
-
+  
   async getCategories(): Promise<Category[]> {
     return await db.select().from(categories);
   }
-
+  
   async createCategory(category: InsertCategory): Promise<Category> {
     const [newCategory] = await db.insert(categories).values(category).returning();
     return newCategory;
+  }
+  
+  async updateCategory(id: number, categoryData: Partial<InsertCategory>): Promise<Category | undefined> {
+    const [updatedCategory] = await db
+      .update(categories)
+      .set(categoryData)
+      .where(eq(categories.id, id))
+      .returning();
+    return updatedCategory;
   }
 
   // Prescription methods

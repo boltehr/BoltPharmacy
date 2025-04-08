@@ -127,12 +127,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(medication);
   });
   
-  router.post("/medications", validateRequest(insertMedicationSchema), async (req, res) => {
+  router.post("/medications", isAdmin, validateRequest(insertMedicationSchema), async (req, res) => {
     try {
       const medication = await storage.createMedication(req.body);
       res.status(201).json(medication);
     } catch (err) {
+      console.error("Error creating medication:", err);
       res.status(500).json({ message: "Failed to create medication" });
+    }
+  });
+  
+  // Update an existing medication (admin only)
+  router.put("/medications/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const medication = await storage.getMedication(id);
+      
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      // Validate the request body
+      const parseResult = insertMedicationSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid medication data", 
+          errors: parseResult.error.errors 
+        });
+      }
+      
+      const updatedMedication = await storage.updateMedication(id, parseResult.data);
+      res.json(updatedMedication);
+    } catch (err) {
+      console.error("Error updating medication:", err);
+      res.status(500).json({ message: "Failed to update medication" });
+    }
+  });
+  
+  // Delete a medication (admin only)
+  router.delete("/medications/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const medication = await storage.getMedication(id);
+      
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      // In a real application, you might want to check if the medication is used in any orders
+      // before deleting it or implement a soft delete instead
+      
+      // For now, we'll just update the medication to mark it as deleted (soft delete)
+      await storage.updateMedication(id, { inStock: false });
+      
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting medication:", err);
+      res.status(500).json({ message: "Failed to delete medication" });
     }
   });
   
@@ -150,12 +201,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(category);
   });
   
-  router.post("/categories", validateRequest(insertCategorySchema), async (req, res) => {
+  router.post("/categories", isAdmin, validateRequest(insertCategorySchema), async (req, res) => {
     try {
+      // Check if category with the same name already exists
+      const existingCategory = await storage.getCategoryByName(req.body.name);
+      if (existingCategory) {
+        return res.status(409).json({ message: 'A category with this name already exists' });
+      }
+      
       const category = await storage.createCategory(req.body);
       res.status(201).json(category);
     } catch (err) {
+      console.error("Error creating category:", err);
       res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+  
+  // Update an existing category (admin only)
+  router.put("/categories/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const category = await storage.getCategory(id);
+      
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      
+      // Validate the request body
+      const parseResult = insertCategorySchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid category data", 
+          errors: parseResult.error.errors 
+        });
+      }
+      
+      // If name is being updated, check for conflicts
+      if (parseResult.data.name && parseResult.data.name !== category.name) {
+        const existingCategory = await storage.getCategoryByName(parseResult.data.name);
+        if (existingCategory && existingCategory.id !== id) {
+          return res.status(409).json({ message: 'A category with this name already exists' });
+        }
+      }
+      
+      const updatedCategory = await storage.updateCategory(id, parseResult.data);
+      res.json(updatedCategory);
+    } catch (err) {
+      console.error("Error updating category:", err);
+      res.status(500).json({ message: "Failed to update category" });
     }
   });
   
