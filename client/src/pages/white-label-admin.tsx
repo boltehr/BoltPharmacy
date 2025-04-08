@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { useWhiteLabel } from "@/lib/context/whiteLabel";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getQueryFn, apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import { WhiteLabel } from "@shared/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -81,6 +84,7 @@ const whiteLabelFormSchema = z.object({
   customHeader: z.string().optional().nullable(),
   termsUrl: z.string().url().optional().nullable(),
   privacyUrl: z.string().url().optional().nullable(),
+  allowGuestCart: z.boolean().default(true),
   isActive: z.boolean().optional(),
 });
 
@@ -91,19 +95,113 @@ const defaultValues: Partial<WhiteLabelFormValues> = {
   secondaryColor: "#10b981", // Default green
   accentColor: "#f59e0b", // Default amber
   fontFamily: "Inter",
+  allowGuestCart: true,
   isActive: false,
 };
 
 export default function WhiteLabelAdmin() {
-  const {
-    activeWhiteLabel,
-    whiteLabels,
-    isWhiteLabelsLoading,
-    createWhiteLabelMutation,
-    updateWhiteLabelMutation,
-    activateWhiteLabelMutation,
-    deactivateWhiteLabelMutation,
-  } = useWhiteLabel();
+  const { loading, config, updateConfig } = useWhiteLabel();
+  const { toast } = useToast();
+  
+  // Get white label configurations
+  const { 
+    data: whiteLabels = [],
+    isLoading: isWhiteLabelsLoading
+  } = useQuery({
+    queryKey: ['/api/white-label'],
+    queryFn: getQueryFn(),
+  });
+  
+  // Current active white label
+  const activeWhiteLabel = whiteLabels.find(wl => wl.isActive) || null;
+  
+  // Create a new white label configuration
+  const createWhiteLabelMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('POST', '/api/white-label', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      toast({
+        title: 'White label created',
+        description: 'The white label configuration has been created successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to create white label',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Update an existing white label configuration
+  const updateWhiteLabelMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest('PATCH', `/api/white-label/${data.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      toast({
+        title: 'White label updated',
+        description: 'The white label configuration has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to update white label',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Activate a white label configuration
+  const activateWhiteLabelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('PATCH', `/api/white-label/${id}/activate`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      toast({
+        title: 'White label activated',
+        description: 'The white label configuration has been activated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to activate white label',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Deactivate a white label configuration
+  const deactivateWhiteLabelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('PATCH', `/api/white-label/${id}/deactivate`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      toast({
+        title: 'White label deactivated',
+        description: 'The white label configuration has been deactivated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to deactivate white label',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
 
   const [selectedWhiteLabel, setSelectedWhiteLabel] = useState<WhiteLabel | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -134,6 +232,7 @@ export default function WhiteLabelAdmin() {
         secondaryColor: selectedWhiteLabel.secondaryColor ?? '',
         accentColor: selectedWhiteLabel.accentColor ?? '',
         fontFamily: selectedWhiteLabel.fontFamily ?? '',
+        allowGuestCart: selectedWhiteLabel.allowGuestCart ?? true,
         isActive: selectedWhiteLabel.isActive ?? false,
       });
     } else {
@@ -212,6 +311,7 @@ export default function WhiteLabelAdmin() {
       secondaryColor: whiteLabel.secondaryColor ?? '',
       accentColor: whiteLabel.accentColor ?? '',
       fontFamily: whiteLabel.fontFamily ?? '',
+      allowGuestCart: whiteLabel.allowGuestCart ?? true,
       isActive: whiteLabel.isActive ?? false,
     });
   }
@@ -287,7 +387,7 @@ export default function WhiteLabelAdmin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {whiteLabels.map((whiteLabel) => (
+                    {whiteLabels.map((whiteLabel: WhiteLabel) => (
                       <TableRow key={whiteLabel.id}>
                         <TableCell className="font-medium">{whiteLabel.name}</TableCell>
                         <TableCell>{whiteLabel.companyName}</TableCell>
@@ -550,6 +650,34 @@ export default function WhiteLabelAdmin() {
                           </FormControl>
                           <FormDescription>
                             The primary font for the website.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Feature Settings */}
+                    <div className="space-y-4 md:col-span-2">
+                      <h3 className="text-lg font-semibold mt-6">Feature Settings</h3>
+                      <Separator />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="allowGuestCart"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center space-x-2">
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormLabel>Allow Guest Cart</FormLabel>
+                          </div>
+                          <FormDescription>
+                            Allow users to add items to cart without signing in.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

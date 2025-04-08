@@ -1,5 +1,7 @@
 import { createContext, useState, useContext, ReactNode, useEffect } from "react";
+import { UseMutationResult } from "@tanstack/react-query";
 import { apiRequest } from "../queryClient";
+import { WhiteLabel } from "@shared/schema";
 
 export interface WhiteLabelConfig {
   name: string;
@@ -10,6 +12,7 @@ export interface WhiteLabelConfig {
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
+  allowGuestCart?: boolean;
   socialLinks?: {
     facebook?: string;
     twitter?: string;
@@ -32,6 +35,7 @@ const defaultConfig: WhiteLabelConfig = {
   name: "BoltEHR Pharmacy",
   primaryColor: "#0070f3",
   tagline: "Your trusted online pharmacy for affordable medications",
+  allowGuestCart: true,
 };
 
 export const WhiteLabelContext = createContext<WhiteLabelContextType>({

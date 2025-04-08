@@ -12,6 +12,14 @@ export const users = pgTable("users", {
   lastName: text("last_name"),
   email: text("email").notNull().unique(),
   phone: text("phone"),
+  // Email verification
+  emailVerified: boolean("email_verified").default(false),
+  verificationToken: text("verification_token"),
+  verificationTokenExpiry: timestamp("verification_token_expiry"),
+  // Communication preferences
+  orderStatusMethod: text("order_status_method").default("email"), // email, sms
+  receivePromotions: boolean("receive_promotions").default(true),
+  promotionsMethod: text("promotions_method").default("email"), // email, sms, none
   // Shipping address
   address: text("address"),
   city: text("city"),
@@ -395,6 +403,7 @@ export const whiteLabels = pgTable("white_labels", {
   customHeader: text("custom_header"),
   termsUrl: text("terms_url"),
   privacyUrl: text("privacy_url"),
+  allowGuestCart: boolean("allow_guest_cart").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   isActive: boolean("is_active").default(false),
