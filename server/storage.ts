@@ -448,15 +448,41 @@ export class MemStorage implements IStorage {
   
   // Prescription methods
   async getPrescription(id: number): Promise<Prescription | undefined> {
-    return this.prescriptions.get(id);
+    const prescription = this.prescriptions.get(id);
+    
+    if (prescription) {
+      // Add verificationStatus field if missing based on other fields
+      if (prescription.verificationStatus === undefined) {
+        prescription.verificationStatus = prescription.verifiedBy ? "verified" : "unverified";
+      }
+    }
+    
+    return prescription;
   }
   
   async getPrescriptionsByUser(userId: number): Promise<Prescription[]> {
-    return Array.from(this.prescriptions.values()).filter(prescription => prescription.userId === userId);
+    const prescriptions = Array.from(this.prescriptions.values())
+      .filter(prescription => prescription.userId === userId)
+      .map(prescription => {
+        // Add verificationStatus field if missing based on other fields
+        if (prescription.verificationStatus === undefined) {
+          prescription.verificationStatus = prescription.verifiedBy ? "verified" : "unverified";
+        }
+        return prescription;
+      });
+    
+    return prescriptions;
   }
   
   async getPrescriptionsForVerification(status?: string, limit = 20, offset = 0): Promise<Prescription[]> {
-    let prescriptions = Array.from(this.prescriptions.values());
+    let prescriptions = Array.from(this.prescriptions.values())
+      .map(prescription => {
+        // Add verificationStatus field if missing based on other fields
+        if (prescription.verificationStatus === undefined) {
+          prescription.verificationStatus = prescription.verifiedBy ? "verified" : "unverified";
+        }
+        return prescription;
+      });
     
     if (status) {
       // Filter by status if provided
@@ -495,6 +521,7 @@ export class MemStorage implements IStorage {
       verificationDate: null,
       verificationMethod: null,
       verificationNotes: null,
+      verificationStatus: "unverified", // Set default verification status
       expirationDate: null,
       securityCode,
       revoked: false,
@@ -544,6 +571,7 @@ export class MemStorage implements IStorage {
       verificationDate: now,
       verificationMethod: verificationData.verificationMethod,
       verificationNotes: verificationData.verificationNotes ?? null,
+      verificationStatus: "verified", // Set verification status to verified
       expirationDate: verificationData.expirationDate ?? defaultExpirationDate,
       // Update the status
       status: verificationData.status
@@ -561,6 +589,7 @@ export class MemStorage implements IStorage {
       ...prescription,
       revoked: true,
       revokedReason: reason,
+      verificationStatus: "failed", // Mark verification as failed
       status: 'rejected' // Update the main status as well
     };
     
@@ -640,7 +669,7 @@ export class MemStorage implements IStorage {
   
   async getOrdersByStatus(status: string, limit: number = 20, offset: number = 0): Promise<{ orders: Order[], total: number }> {
     const filteredOrders = Array.from(this.orders.values())
-      .filter(order => order.status === status)
+      .filter(order => status === 'all' ? true : order.status === status)
       .sort((a, b) => {
         const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;

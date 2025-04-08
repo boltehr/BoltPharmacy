@@ -302,6 +302,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all prescriptions with search capabilities (admin only)
+  router.get("/prescriptions/admin", isAdmin, async (req, res) => {
+    try {
+      const searchQuery = req.query.search as string | undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const offset = req.query.offset ? Number(req.query.offset) : 0;
+      
+      // Get prescriptions from storage - we'll use getPrescriptionsForVerification since it gets all prescriptions
+      const prescriptions = await storage.getPrescriptionsForVerification(undefined, limit, offset);
+      
+      // Get associated user data for each prescription
+      let prescriptionsWithUsers = await Promise.all(
+        prescriptions.map(async (prescription) => {
+          const user = await storage.getUser(prescription.userId);
+          return {
+            ...prescription,
+            user: user ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              phone: user.phone
+            } : null
+          };
+        })
+      );
+      
+      // Filter by search query if provided
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        prescriptionsWithUsers = prescriptionsWithUsers.filter(p => 
+          (p.user?.firstName && p.user.firstName.toLowerCase().includes(query)) ||
+          (p.user?.lastName && p.user.lastName.toLowerCase().includes(query)) ||
+          (p.user?.email && p.user.email.toLowerCase().includes(query)) ||
+          (p.user?.phone && p.user.phone.toLowerCase().includes(query)) ||
+          (p.doctorName && p.doctorName.toLowerCase().includes(query))
+        );
+      }
+      
+      res.json({
+        prescriptions: prescriptionsWithUsers,
+        total: prescriptionsWithUsers.length,
+        limit,
+        offset
+      });
+    } catch (error) {
+      console.error("Error fetching admin prescriptions:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   router.get("/prescriptions/:id", async (req, res) => {
     const prescription = await storage.getPrescription(Number(req.params.id));
     if (!prescription) {
@@ -383,6 +434,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error fetching orders by status:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Get all orders with search capabilities (admin only)
+  router.get("/orders/admin", isAdmin, async (req, res) => {
+    try {
+      const searchQuery = req.query.search as string | undefined;
+      const status = req.query.status as string | undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const offset = req.query.offset ? Number(req.query.offset) : 0;
+      
+      // Get orders by status, or all orders if no status specified
+      const { orders, total } = await storage.getOrdersByStatus(status || 'all', limit, offset);
+      
+      // Enhance orders with user and prescription information
+      let enhancedOrders = await Promise.all(orders.map(async (order) => {
+        const user = order.userId ? await storage.getUser(order.userId) : null;
+        const prescription = order.prescriptionId ? await storage.getPrescription(order.prescriptionId) : null;
+        const orderItems = await storage.getOrderItems(order.id);
+        
+        return {
+          ...order,
+          user: user ? {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            phone: user.phone
+          } : null,
+          prescription: prescription ? {
+            id: prescription.id,
+            status: prescription.status,
+            uploadDate: prescription.uploadDate,
+            verifiedBy: prescription.verifiedBy,
+            // Compute verification status based on existing fields if not available
+            verificationStatus: prescription.verificationStatus || 
+              (prescription.verifiedBy ? "verified" : "unverified"),
+            revoked: prescription.revoked
+          } : null,
+          items: orderItems
+        };
+      }));
+      
+      // Filter by search query if provided
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        enhancedOrders = enhancedOrders.filter(order => 
+          (order.user?.firstName && order.user.firstName.toLowerCase().includes(query)) ||
+          (order.user?.lastName && order.user.lastName.toLowerCase().includes(query)) ||
+          (order.user?.email && order.user.email.toLowerCase().includes(query)) ||
+          (order.user?.phone && order.user.phone.toLowerCase().includes(query)) ||
+          (order.trackingNumber && order.trackingNumber.toLowerCase().includes(query))
+        );
+      }
+      
+      res.json({ 
+        orders: enhancedOrders, 
+        total: enhancedOrders.length,
+        status,
+        limit,
+        offset
+      });
+    } catch (error) {
+      console.error("Error fetching admin orders:", error);
       res.status(500).json({ message: "Server error" });
     }
   });
