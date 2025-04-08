@@ -13,10 +13,11 @@ import {
   whiteLabels, type WhiteLabel, type InsertWhiteLabel,
   inventoryProviders, type InventoryProvider, type InsertInventoryProvider,
   inventoryItems, type InventoryItem, type InsertInventoryItem,
-  inventoryMappings, type InventoryMapping, type InsertInventoryMapping
+  inventoryMappings, type InventoryMapping, type InsertInventoryMapping,
+  userMedications, type UserMedication, type InsertUserMedication
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, like, desc, sql } from "drizzle-orm";
+import { eq, like, desc, and, sql } from "drizzle-orm";
 
 // Storage interface
 import session from "express-session";
@@ -162,6 +163,20 @@ export interface IStorage {
   
   // Helper method for inventory service
   getAllMedicationsSync(): Medication[];
+  
+  // User Medications methods
+  getUserMedication(id: number): Promise<UserMedication | undefined>;
+  getUserMedicationsByUser(userId: number): Promise<UserMedication[]>;
+  getUserMedicationsByUserAndMedication(userId: number, medicationId: number): Promise<UserMedication | undefined>;
+  getUserMedicationsByPrescription(prescriptionId: number): Promise<UserMedication[]>;
+  createUserMedication(medication: InsertUserMedication): Promise<UserMedication>;
+  updateUserMedication(id: number, medication: Partial<InsertUserMedication>): Promise<UserMedication | undefined>;
+  toggleUserMedicationActive(id: number, active: boolean): Promise<UserMedication | undefined>;
+  deleteUserMedication(id: number): Promise<boolean>;
+  
+  // User Medications Automatic Methods
+  addUserMedicationFromOrder(userId: number, medicationId: number, source: string): Promise<UserMedication | undefined>;
+  addUserMedicationFromPrescription(userId: number, medicationId: number, prescriptionId: number): Promise<UserMedication | undefined>;
 }
 
 // In-memory storage implementation
@@ -181,6 +196,7 @@ export class MemStorage implements IStorage {
   private inventoryProviders: Map<number, InventoryProvider>;
   private inventoryItems: Map<number, InventoryItem>;
   private inventoryMappings: Map<number, InventoryMapping>;
+  private userMedications: Map<number, UserMedication>;
   
   public sessionStore: session.Store;
   
@@ -200,6 +216,8 @@ export class MemStorage implements IStorage {
   private inventoryProviderIdCounter: number;
   private inventoryItemIdCounter: number;
   private inventoryMappingIdCounter: number;
+  // User Medications counter
+  private userMedicationIdCounter: number;
   
   constructor() {
     this.users = new Map();
@@ -218,6 +236,8 @@ export class MemStorage implements IStorage {
     this.inventoryProviders = new Map();
     this.inventoryItems = new Map();
     this.inventoryMappings = new Map();
+    // Initialize user medications map
+    this.userMedications = new Map();
     
     // Initialize session store
     const MemoryStore = memorystore(session);
@@ -241,6 +261,8 @@ export class MemStorage implements IStorage {
     this.inventoryProviderIdCounter = 1;
     this.inventoryItemIdCounter = 1;
     this.inventoryMappingIdCounter = 1;
+    // Initialize user medications counter
+    this.userMedicationIdCounter = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -1402,6 +1424,141 @@ export class MemStorage implements IStorage {
   getAllMedicationsSync(): Medication[] {
     return Array.from(this.medications.values());
   }
+
+  // User Medications methods
+  async getUserMedication(id: number): Promise<UserMedication | undefined> {
+    return this.userMedications.get(id);
+  }
+
+  async getUserMedicationsByUser(userId: number): Promise<UserMedication[]> {
+    return Array.from(this.userMedications.values())
+      .filter(userMed => userMed.userId === userId);
+  }
+
+  async getUserMedicationsByUserAndMedication(userId: number, medicationId: number): Promise<UserMedication | undefined> {
+    return Array.from(this.userMedications.values())
+      .find(userMed => userMed.userId === userId && userMed.medicationId === medicationId);
+  }
+
+  async getUserMedicationsByPrescription(prescriptionId: number): Promise<UserMedication[]> {
+    return Array.from(this.userMedications.values())
+      .filter(userMed => userMed.prescriptionId === prescriptionId);
+  }
+
+  async createUserMedication(medication: InsertUserMedication): Promise<UserMedication> {
+    const id = this.userMedicationIdCounter++;
+    const now = new Date();
+    
+    const newUserMedication: UserMedication = {
+      ...medication,
+      id,
+      startDate: now,
+      endDate: medication.endDate ?? null,
+      dosage: medication.dosage ?? null,
+      frequency: medication.frequency ?? null,
+      instructions: medication.instructions ?? null,
+      notes: medication.notes ?? null,
+      active: medication.active ?? true,
+      source: medication.source ?? 'manual',
+    };
+    
+    this.userMedications.set(id, newUserMedication);
+    return newUserMedication;
+  }
+
+  async updateUserMedication(id: number, medicationData: Partial<InsertUserMedication>): Promise<UserMedication | undefined> {
+    const userMedication = await this.getUserMedication(id);
+    if (!userMedication) return undefined;
+    
+    const updatedUserMedication: UserMedication = { ...userMedication, ...medicationData };
+    this.userMedications.set(id, updatedUserMedication);
+    return updatedUserMedication;
+  }
+
+  async toggleUserMedicationActive(id: number, active: boolean): Promise<UserMedication | undefined> {
+    const userMedication = await this.getUserMedication(id);
+    if (!userMedication) return undefined;
+    
+    const updatedUserMedication: UserMedication = { ...userMedication, active };
+    this.userMedications.set(id, updatedUserMedication);
+    return updatedUserMedication;
+  }
+
+  async deleteUserMedication(id: number): Promise<boolean> {
+    const exists = this.userMedications.has(id);
+    if (exists) {
+      this.userMedications.delete(id);
+      return true;
+    }
+    return false;
+  }
+
+  // User Medications Automatic Methods
+  async addUserMedicationFromOrder(userId: number, medicationId: number, source: string): Promise<UserMedication | undefined> {
+    // First check if user already has this medication
+    const existingMed = await this.getUserMedicationsByUserAndMedication(userId, medicationId);
+    
+    if (existingMed) {
+      // If medication already exists but is not active, reactivate it
+      if (!existingMed.active) {
+        return this.toggleUserMedicationActive(existingMed.id, true);
+      }
+      return existingMed; // Already exists and active
+    }
+    
+    // Get medication details
+    const medication = await this.getMedication(medicationId);
+    if (!medication) return undefined;
+    
+    // Create new user medication
+    const newUserMed = await this.createUserMedication({
+      userId,
+      medicationId,
+      source,
+      active: true,
+      // Optional details from the medication if available
+      dosage: medication.dosage ?? null,
+    });
+    
+    return newUserMed;
+  }
+
+  async addUserMedicationFromPrescription(userId: number, medicationId: number, prescriptionId: number): Promise<UserMedication | undefined> {
+    // First check if user already has this medication
+    const existingMed = await this.getUserMedicationsByUserAndMedication(userId, medicationId);
+    
+    if (existingMed) {
+      // If medication already exists but is not active, reactivate it
+      if (!existingMed.active) {
+        return this.toggleUserMedicationActive(existingMed.id, true);
+      }
+      // Update with prescription id if needed
+      if (!existingMed.prescriptionId) {
+        return this.updateUserMedication(existingMed.id, { prescriptionId });
+      }
+      return existingMed; // Already exists and active with prescription
+    }
+    
+    // Get medication and prescription details
+    const medication = await this.getMedication(medicationId);
+    const prescription = await this.getPrescription(prescriptionId);
+    if (!medication || !prescription) return undefined;
+    
+    // Create new user medication with prescription
+    const newUserMed = await this.createUserMedication({
+      userId,
+      medicationId,
+      prescriptionId,
+      source: 'prescription',
+      active: true,
+      // Optional details from the medication if available
+      dosage: medication.dosage ?? null,
+      // Optional details from prescription if available
+      instructions: prescription.notes ?? null,
+    });
+    
+    return newUserMed;
+  }
 }
 
 // Database storage implementation
@@ -2258,6 +2415,138 @@ export class DatabaseStorage implements IStorage {
       console.error("Error fetching medications synchronously:", error);
       return [];
     }
+  }
+
+  // User Medications methods
+  async getUserMedication(id: number): Promise<UserMedication | undefined> {
+    const [userMedication] = await db.select().from(userMedications).where(eq(userMedications.id, id));
+    return userMedication;
+  }
+
+  async getUserMedicationsByUser(userId: number): Promise<UserMedication[]> {
+    return await db
+      .select()
+      .from(userMedications)
+      .where(eq(userMedications.userId, userId))
+      .orderBy(userMedications.startDate);
+  }
+
+  async getUserMedicationsByUserAndMedication(userId: number, medicationId: number): Promise<UserMedication | undefined> {
+    const [userMedication] = await db
+      .select()
+      .from(userMedications)
+      .where(and(
+        eq(userMedications.userId, userId),
+        eq(userMedications.medicationId, medicationId)
+      ));
+    return userMedication;
+  }
+
+  async getUserMedicationsByPrescription(prescriptionId: number): Promise<UserMedication[]> {
+    return await db
+      .select()
+      .from(userMedications)
+      .where(eq(userMedications.prescriptionId, prescriptionId));
+  }
+
+  async createUserMedication(medication: InsertUserMedication): Promise<UserMedication> {
+    const [newUserMedication] = await db
+      .insert(userMedications)
+      .values(medication)
+      .returning();
+    return newUserMedication;
+  }
+
+  async updateUserMedication(id: number, medicationData: Partial<InsertUserMedication>): Promise<UserMedication | undefined> {
+    const [updatedUserMedication] = await db
+      .update(userMedications)
+      .set(medicationData)
+      .where(eq(userMedications.id, id))
+      .returning();
+    return updatedUserMedication;
+  }
+
+  async toggleUserMedicationActive(id: number, active: boolean): Promise<UserMedication | undefined> {
+    const [updatedUserMedication] = await db
+      .update(userMedications)
+      .set({ active })
+      .where(eq(userMedications.id, id))
+      .returning();
+    return updatedUserMedication;
+  }
+
+  async deleteUserMedication(id: number): Promise<boolean> {
+    const result = await db
+      .delete(userMedications)
+      .where(eq(userMedications.id, id));
+    return !!result.rowCount;
+  }
+
+  // User Medications Automatic Methods
+  async addUserMedicationFromOrder(userId: number, medicationId: number, source: string): Promise<UserMedication | undefined> {
+    // First check if user already has this medication
+    const existingMed = await this.getUserMedicationsByUserAndMedication(userId, medicationId);
+    
+    if (existingMed) {
+      // If medication already exists but is not active, reactivate it
+      if (!existingMed.active) {
+        return this.toggleUserMedicationActive(existingMed.id, true);
+      }
+      return existingMed; // Already exists and active
+    }
+    
+    // Get medication details
+    const medication = await this.getMedication(medicationId);
+    if (!medication) return undefined;
+    
+    // Create new user medication
+    const newUserMed = await this.createUserMedication({
+      userId,
+      medicationId,
+      source,
+      active: true,
+      // Optional details from the medication if available
+      dosage: medication.dosage ?? null,
+    });
+    
+    return newUserMed;
+  }
+
+  async addUserMedicationFromPrescription(userId: number, medicationId: number, prescriptionId: number): Promise<UserMedication | undefined> {
+    // First check if user already has this medication
+    const existingMed = await this.getUserMedicationsByUserAndMedication(userId, medicationId);
+    
+    if (existingMed) {
+      // If medication already exists but is not active, reactivate it
+      if (!existingMed.active) {
+        return this.toggleUserMedicationActive(existingMed.id, true);
+      }
+      // Update with prescription id if needed
+      if (!existingMed.prescriptionId) {
+        return this.updateUserMedication(existingMed.id, { prescriptionId });
+      }
+      return existingMed; // Already exists and active with prescription
+    }
+    
+    // Get medication and prescription details
+    const medication = await this.getMedication(medicationId);
+    const prescription = await this.getPrescription(prescriptionId);
+    if (!medication || !prescription) return undefined;
+    
+    // Create new user medication with prescription
+    const newUserMed = await this.createUserMedication({
+      userId,
+      medicationId,
+      prescriptionId,
+      source: 'prescription',
+      active: true,
+      // Optional details from the medication if available
+      dosage: medication.dosage ?? null,
+      // Optional details from prescription if available
+      instructions: prescription.notes ?? null,
+    });
+    
+    return newUserMed;
   }
 }
 

@@ -23,6 +23,7 @@ import OrderHistory from "@/pages/order-history";
 import OrderTracking from "@/pages/order-tracking";
 import CompleteProfile from "@/pages/complete-profile";
 import Allergies from "@/pages/allergies";
+import UserMedications from "@/pages/user-medications";
 
 // Admin components
 import WhiteLabelAdmin from "@/pages/white-label-admin";
@@ -73,6 +74,11 @@ function Router() {
       <Route path="/allergies">
         <ProtectedRoute>
           <Allergies />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/my-medications">
+        <ProtectedRoute>
+          <UserMedications />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/white-label">

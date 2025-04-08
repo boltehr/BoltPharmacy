@@ -1448,6 +1448,301 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // User Medications API Routes
+  router.get("/user-medications", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const userMedications = await storage.getUserMedicationsByUser(req.user.id);
+      
+      // Fetch medication details for each user medication
+      const medicationIdsSet = new Set(userMedications.map(med => med.medicationId));
+      const medicationIds = Array.from(medicationIdsSet);
+      const medications = await Promise.all(
+        medicationIds.map(id => storage.getMedication(id))
+      );
+      
+      const medicationsMap = new Map();
+      medications.forEach(med => {
+        if (med) medicationsMap.set(med.id, med);
+      });
+      
+      // Combine user medication data with medication details
+      const detailedUserMedications = userMedications.map(userMed => {
+        const medication = medicationsMap.get(userMed.medicationId);
+        return {
+          ...userMed,
+          medication: medication ? {
+            id: medication.id,
+            name: medication.name,
+            genericName: medication.genericName,
+            brandName: medication.brandName,
+            dosage: medication.dosage,
+            imageUrl: medication.imageUrl,
+            category: medication.category
+          } : null
+        };
+      });
+      
+      res.json(detailedUserMedications);
+    } catch (error) {
+      console.error("Error fetching user medications:", error);
+      res.status(500).json({ message: "Failed to fetch user medications" });
+    }
+  });
+  
+  router.get("/user-medications/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const userMedicationId = parseInt(req.params.id);
+      const userMedication = await storage.getUserMedication(userMedicationId);
+      
+      if (!userMedication) {
+        return res.status(404).json({ message: "User medication not found" });
+      }
+      
+      // Check if this medication belongs to the requesting user
+      if (userMedication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Fetch medication details
+      const medication = await storage.getMedication(userMedication.medicationId);
+      
+      const userMedicationWithDetails = {
+        ...userMedication,
+        medication: medication ? {
+          id: medication.id,
+          name: medication.name,
+          genericName: medication.genericName,
+          brandName: medication.brandName,
+          dosage: medication.dosage,
+          imageUrl: medication.imageUrl,
+          category: medication.category
+        } : null
+      };
+      
+      res.json(userMedicationWithDetails);
+    } catch (error) {
+      console.error("Error fetching user medication:", error);
+      res.status(500).json({ message: "Failed to fetch user medication" });
+    }
+  });
+  
+  router.post("/user-medications", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const medicationData = {
+        ...req.body,
+        userId: req.user.id,
+        source: req.body.source || "manual"
+      };
+      
+      const newUserMedication = await storage.createUserMedication(medicationData);
+      
+      res.status(201).json(newUserMedication);
+    } catch (error) {
+      console.error("Error creating user medication:", error);
+      res.status(500).json({ message: "Failed to create user medication" });
+    }
+  });
+  
+  router.put("/user-medications/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const userMedicationId = parseInt(req.params.id);
+      const userMedication = await storage.getUserMedication(userMedicationId);
+      
+      if (!userMedication) {
+        return res.status(404).json({ message: "User medication not found" });
+      }
+      
+      // Check if this medication belongs to the requesting user
+      if (userMedication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const medicationData = req.body;
+      const updatedUserMedication = await storage.updateUserMedication(userMedicationId, medicationData);
+      
+      res.json(updatedUserMedication);
+    } catch (error) {
+      console.error("Error updating user medication:", error);
+      res.status(500).json({ message: "Failed to update user medication" });
+    }
+  });
+  
+  router.patch("/user-medications/:id/toggle-active", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const userMedicationId = parseInt(req.params.id);
+      const userMedication = await storage.getUserMedication(userMedicationId);
+      
+      if (!userMedication) {
+        return res.status(404).json({ message: "User medication not found" });
+      }
+      
+      // Check if this medication belongs to the requesting user
+      if (userMedication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const { active } = req.body;
+      if (typeof active !== 'boolean') {
+        return res.status(400).json({ message: "Active status must be a boolean" });
+      }
+      
+      const updatedUserMedication = await storage.toggleUserMedicationActive(userMedicationId, active);
+      
+      res.json(updatedUserMedication);
+    } catch (error) {
+      console.error("Error toggling user medication active status:", error);
+      res.status(500).json({ message: "Failed to toggle user medication active status" });
+    }
+  });
+  
+  router.delete("/user-medications/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const userMedicationId = parseInt(req.params.id);
+      const userMedication = await storage.getUserMedication(userMedicationId);
+      
+      if (!userMedication) {
+        return res.status(404).json({ message: "User medication not found" });
+      }
+      
+      // Check if this medication belongs to the requesting user
+      if (userMedication.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.deleteUserMedication(userMedicationId);
+      
+      if (success) {
+        res.status(204).send();
+      } else {
+        res.status(500).json({ message: "Failed to delete user medication" });
+      }
+    } catch (error) {
+      console.error("Error deleting user medication:", error);
+      res.status(500).json({ message: "Failed to delete user medication" });
+    }
+  });
+  
+  // Auto-add medication from order
+  router.post("/orders/:orderId/add-to-medications", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const orderId = parseInt(req.params.orderId);
+      const order = await storage.getOrder(orderId);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Check if this order belongs to the requesting user
+      if (order.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get order items
+      const orderItems = await storage.getOrderItems(orderId);
+      
+      if (!orderItems || orderItems.length === 0) {
+        return res.status(404).json({ message: "No order items found" });
+      }
+      
+      // Add each medication from the order to the user's medication list
+      const addedMedications = [];
+      for (const item of orderItems) {
+        const userMed = await storage.addUserMedicationFromOrder(
+          req.user.id,
+          item.medicationId,
+          "order"
+        );
+        
+        if (userMed) {
+          addedMedications.push(userMed);
+        }
+      }
+      
+      res.status(201).json({
+        message: `${addedMedications.length} medications added to your list`,
+        medications: addedMedications
+      });
+    } catch (error) {
+      console.error("Error adding medications from order:", error);
+      res.status(500).json({ message: "Failed to add medications from order" });
+    }
+  });
+  
+  // Auto-add medication from prescription
+  router.post("/prescriptions/:prescriptionId/add-to-medications", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+      
+      const prescriptionId = parseInt(req.params.prescriptionId);
+      const prescription = await storage.getPrescription(prescriptionId);
+      
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      
+      // Check if this prescription belongs to the requesting user
+      if (prescription.userId !== req.user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      // Get the medication ID from the request body
+      const { medicationId } = req.body;
+      
+      if (!medicationId) {
+        return res.status(400).json({ message: "Medication ID is required" });
+      }
+      
+      // Add the medication from the prescription to the user's medication list
+      const userMed = await storage.addUserMedicationFromPrescription(
+        req.user.id,
+        medicationId,
+        prescriptionId
+      );
+      
+      if (!userMed) {
+        return res.status(404).json({ message: "Failed to add medication from prescription" });
+      }
+      
+      res.status(201).json({
+        message: "Medication added to your list",
+        medication: userMed
+      });
+    } catch (error) {
+      console.error("Error adding medication from prescription:", error);
+      res.status(500).json({ message: "Failed to add medication from prescription" });
+    }
+  });
+
   // Register API routes
   app.use("/api", router);
   

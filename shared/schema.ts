@@ -250,6 +250,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   cart: many(cart),
   refillRequests: many(refillRequests),
   refillNotifications: many(refillNotifications),
+  userMedications: many(userMedications),
 }));
 
 export const insuranceProvidersRelations = relations(insuranceProviders, ({ many }) => ({
@@ -266,6 +267,8 @@ export const insuranceRelations = relations(insurance, ({ one }) => ({
 export const medicationsRelations = relations(medications, ({ many }) => ({
   orderItems: many(orderItems),
   refillRequests: many(refillRequests),
+  userMedications: many(userMedications),
+  inventoryMappings: many(inventoryMappings),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({
@@ -279,6 +282,7 @@ export const prescriptionsRelations = relations(prescriptions, ({ one, many }) =
   }),
   orders: many(orders),
   refillRequests: many(refillRequests),
+  userMedications: many(userMedications),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -502,10 +506,46 @@ export const inventoryMappingsRelations = relations(inventoryMappings, ({ one })
   }),
 }));
 
-// Add inventory mappings to medications relations
-export const medicationsInventoryRelations = relations(medications, ({ many }) => ({
-  inventoryMappings: many(inventoryMappings),
+
+
+// User Medications schema (for tracking user's personal medication list)
+export const userMedications = pgTable("user_medications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  medicationId: integer("medication_id").notNull().references(() => medications.id),
+  prescriptionId: integer("prescription_id").references(() => prescriptions.id),
+  startDate: timestamp("start_date").defaultNow(),
+  endDate: timestamp("end_date"),
+  dosage: text("dosage"),
+  frequency: text("frequency"),
+  instructions: text("instructions"),
+  notes: text("notes"),
+  active: boolean("active").default(true),
+  source: text("source").default("manual"), // manual, prescription, order
+});
+
+export const insertUserMedicationSchema = createInsertSchema(userMedications).omit({
+  id: true,
+  startDate: true,
+});
+
+// User Medications Relations
+export const userMedicationsRelations = relations(userMedications, ({ one }) => ({
+  user: one(users, {
+    fields: [userMedications.userId],
+    references: [users.id],
+  }),
+  medication: one(medications, {
+    fields: [userMedications.medicationId],
+    references: [medications.id],
+  }),
+  prescription: one(prescriptions, {
+    fields: [userMedications.prescriptionId],
+    references: [prescriptions.id],
+  }),
 }));
+
+
 
 // Export inventory types
 export type InventoryProvider = typeof inventoryProviders.$inferSelect;
@@ -514,3 +554,7 @@ export type InventoryItem = typeof inventoryItems.$inferSelect;
 export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
 export type InventoryMapping = typeof inventoryMappings.$inferSelect;
 export type InsertInventoryMapping = z.infer<typeof insertInventoryMappingSchema>;
+
+// Export user medications types
+export type UserMedication = typeof userMedications.$inferSelect;
+export type InsertUserMedication = z.infer<typeof insertUserMedicationSchema>;
