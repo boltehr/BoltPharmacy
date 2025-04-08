@@ -105,14 +105,14 @@ const CheckoutForm = () => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
+      firstName: user?.firstName as string || "",
+      lastName: user?.lastName as string || "",
       email: user?.email || "",
-      phone: user?.phone || "",
-      address: user?.address || "",
-      city: user?.city || "",
-      state: user?.state || "",
-      zipCode: user?.zipCode || "",
+      phone: user?.phone as string || "",
+      address: user?.address as string || "",
+      city: user?.city as string || "",
+      state: user?.state as string || "",
+      zipCode: user?.zipCode as string || "",
       shippingMethod: "standard" as const,
       paymentMethod: "creditCard" as const,
       cardNumber: "4242 4242 4242 4242", // Demo card number

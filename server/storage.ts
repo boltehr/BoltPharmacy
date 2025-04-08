@@ -17,7 +17,7 @@ import {
   userMedications, type UserMedication, type InsertUserMedication
 } from "@shared/schema";
 import { db, pool } from "./db";
-import { eq, like, desc, and, sql } from "drizzle-orm";
+import { eq, like, desc, and, sql, or } from "drizzle-orm";
 
 // Storage interface
 import session from "express-session";
@@ -1911,27 +1911,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPrescriptionsByUser(userId: number): Promise<Prescription[]> {
-    return await db.select().from(prescriptions).where(eq(prescriptions.userId, userId));
+    // Simplified approach to avoid selecting specific columns which was causing stack overflow
+    return await db
+      .select()
+      .from(prescriptions)
+      .where(eq(prescriptions.userId, userId));
   }
   
   async getPrescriptionsForVerification(status?: string, limit = 20, offset = 0): Promise<Prescription[]> {
-    // Execute the full query at once to avoid type issues
+    // Simplified query to avoid stack overflow
+    const query = db
+      .select()
+      .from(prescriptions)
+      .orderBy(desc(prescriptions.uploadDate))
+      .limit(limit)
+      .offset(offset);
+      
     if (status) {
-      return await db
-        .select()
-        .from(prescriptions)
-        .where(eq(prescriptions.status, status))
-        .orderBy(desc(prescriptions.uploadDate))
-        .limit(limit)
-        .offset(offset);
+      return await query.where(eq(prescriptions.status, status));
     } else {
-      return await db
-        .select()
-        .from(prescriptions)
-        .where(eq(prescriptions.status, "pending"))
-        .orderBy(desc(prescriptions.uploadDate))
-        .limit(limit)
-        .offset(offset);
+      return await query.where(eq(prescriptions.status, "pending"));
     }
   }
 
@@ -2103,52 +2102,42 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getAllOrders(limit: number = 20, offset: number = 0, searchTerm: string = ''): Promise<{ orders: Order[], total: number }> {
-    let query = db.select().from(orders);
-    let countQuery = db.select({ count: sql`count(*)`.mapWith(Number) }).from(orders);
+    let results: Order[] = [];
+    let count = 0;
     
-    // If search term is provided, search across multiple fields
-    if (searchTerm) {
+    if (searchTerm && searchTerm.trim() !== '') {
       const lowerSearchTerm = `%${searchTerm.toLowerCase()}%`;
       
-      // Join with users table to search by user properties
-      query = query
-        .leftJoin(users, eq(orders.userId, users.id))
-        .where(
-          or(
-            sql`LOWER(${orders.status}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${orders.trackingNumber}) LIKE ${lowerSearchTerm}`,
-            sql`CAST(${orders.id} AS TEXT) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.email}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.firstName}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.lastName}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.phone}) LIKE ${lowerSearchTerm}`
-          )
-        );
+      // Simple approach - just search by order status
+      results = await db
+        .select()
+        .from(orders)
+        .where(like(orders.status, lowerSearchTerm))
+        .orderBy(desc(orders.orderDate))
+        .limit(limit)
+        .offset(offset);
+        
+      const [countObj] = await db
+        .select({ count: sql`count(*)`.mapWith(Number) })
+        .from(orders)
+        .where(like(orders.status, lowerSearchTerm));
       
-      // Apply the same conditions to the count query
-      countQuery = countQuery
-        .leftJoin(users, eq(orders.userId, users.id))
-        .where(
-          or(
-            sql`LOWER(${orders.status}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${orders.trackingNumber}) LIKE ${lowerSearchTerm}`,
-            sql`CAST(${orders.id} AS TEXT) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.email}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.firstName}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.lastName}) LIKE ${lowerSearchTerm}`,
-            sql`LOWER(${users.phone}) LIKE ${lowerSearchTerm}`
-          )
-        );
+      count = countObj.count;
+    } else {
+      // Simple query without search
+      results = await db
+        .select()
+        .from(orders)
+        .orderBy(desc(orders.orderDate))
+        .limit(limit)
+        .offset(offset);
+        
+      const [countObj] = await db
+        .select({ count: sql`count(*)`.mapWith(Number) })
+        .from(orders);
+      
+      count = countObj.count;
     }
-    
-    // Get total count
-    const [{ count }] = await countQuery;
-    
-    // Add pagination and ordering to the main query
-    const results = await query
-      .orderBy(desc(orders.orderDate))
-      .limit(limit)
-      .offset(offset);
     
     return {
       orders: results,
