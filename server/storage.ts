@@ -1688,11 +1688,8 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
-  }
-
+  // Note: This implementation is unused because we're using MemStorage
+  // Keeping the method signature for future database implementation
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users).orderBy(users.id);
   }
