@@ -25,13 +25,14 @@ export async function initializeDatabase() {
   const testUser: InsertUser = {
     username: 'testuser',
     email: 'test@example.com',
-    password: 'password123',
+    password: 'password123!',
     firstName: 'Test',
     lastName: 'User',
     phone: '555-123-4567',
     address: '123 Main St, Anytown, USA',
     dateOfBirth: '1990-01-01',
-    sexAtBirth: 'male'
+    sexAtBirth: 'male',
+    role: 'user'
   };
   
   // Add admin user
@@ -58,10 +59,19 @@ export async function initializeDatabase() {
     // Check if user already exists
     const existingUser = await storage.getUserByEmail(testUser.email);
     if (!existingUser) {
-      await storage.createUser(testUser);
-      console.log('Test user created successfully');
+      // Hash the password before creating user
+      const hashedPassword = await hashPassword(testUser.password);
+      await storage.createUser({
+        ...testUser,
+        password: hashedPassword
+      });
+      console.log('Test user created successfully with hashed password');
     } else {
-      console.log('Test user already exists, skipping creation');
+      console.log('Test user already exists, updating password...');
+      // Reset password for existing test user
+      const hashedPassword = await hashPassword(testUser.password);
+      await storage.resetPassword(existingUser.id, hashedPassword);
+      console.log('Test user password updated');
     }
     
     console.log('Adding admin user...');

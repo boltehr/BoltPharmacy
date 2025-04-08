@@ -5,6 +5,10 @@ import { fromZodError } from "zod-validation-error";
 import { insertUserSchema } from "@shared/schema";
 import { compare, hash } from "bcrypt";
 import { z } from "zod";
+import { scrypt, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
 
 // Custom validation schema for user registration
 const registerSchema = z.object({
@@ -49,16 +53,46 @@ declare global {
 
 // Helper to hash passwords 
 export async function hashPassword(password: string): Promise<string> {
-  return hash(password, 10);
+  console.log('Hashing password with bcrypt');
+  try {
+    const hashedPassword = await hash(password, 10);
+    console.log(`Password hashed successfully, result starts with: ${hashedPassword.substring(0, 10)}...`);
+    return hashedPassword;
+  } catch (error) {
+    console.error('Error hashing password:', error);
+    throw error;
+  }
 }
 
 // Helper to compare passwords
 async function comparePasswords(providedPassword: string, storedPassword: string): Promise<boolean> {
   console.log(`Comparing passwords - Provided: ${providedPassword.substring(0, 3)}***, Stored: ${storedPassword.substring(0, 10)}...`);
+  
   try {
-    const result = await compare(providedPassword, storedPassword);
-    console.log(`Password comparison with bcrypt result: ${result}`);
-    return result;
+    // Check if the stored password is a bcrypt hash
+    if (!storedPassword.startsWith('$2') && !storedPassword.includes('.')) {
+      console.log('Password does not appear to be hashed properly, using direct comparison');
+      // If not hashed (during development/testing), just do a direct comparison
+      return providedPassword === storedPassword;
+    } else if (storedPassword.includes('.')) {
+      // Using our custom hash format (hash.salt)
+      console.log('Using custom hash comparison');
+      const [hashed, salt] = storedPassword.split(".");
+      if (!hashed || !salt) {
+        console.error('Invalid stored password format');
+        return false;
+      }
+      
+      const hashedBuf = Buffer.from(hashed, "hex");
+      const suppliedBuf = (await scryptAsync(providedPassword, salt, 64)) as Buffer;
+      return timingSafeEqual(hashedBuf, suppliedBuf);
+    } else {
+      // Using bcrypt
+      console.log('Using bcrypt comparison');
+      const result = await compare(providedPassword, storedPassword);
+      console.log(`Password comparison with bcrypt result: ${result}`);
+      return result;
+    }
   } catch (error) {
     console.error('Error comparing passwords:', error);
     return false;
@@ -466,6 +500,18 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error('Admin initialization API error:', error);
       res.status(500).json({ error: 'Failed to reinitialize admin user' });
+    }
+  });
+  
+  // Endpoint to reinitialize all users
+  app.get("/api/reinitialize-all-users", async (_req, res) => {
+    try {
+      // Reinitialize the database (will recreate both test and admin users)
+      await import('./init-db').then(module => module.initializeDatabase());
+      res.json({ message: 'All users reinitialized successfully' });
+    } catch (error) {
+      console.error('User reinitialization error:', error);
+      res.status(500).json({ error: 'Failed to reinitialize users' });
     }
   });
 }
