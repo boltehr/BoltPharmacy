@@ -23,7 +23,6 @@ import Account from "@/pages/account";
 import OrderHistory from "@/pages/order-history";
 import OrderTracking from "@/pages/order-tracking";
 import CompleteProfile from "@/pages/complete-profile";
-import Allergies from "@/pages/allergies";
 import UserMedications from "@/pages/user-medications";
 import PaymentMethods from "@/pages/payment-methods";
 import FAQ from "@/pages/faq";
@@ -35,7 +34,6 @@ import MedicationAdmin from "@/pages/medication-admin";
 import UserAdmin from "@/pages/user-admin";
 import PrescriptionVerification from "@/pages/prescription-verification";
 import OrderAdmin from "@/pages/order-admin";
-import AllergiesAdmin from "@/pages/allergies-admin";
 import InventoryAdmin from "@/pages/inventory-admin";
 
 function Router() {
@@ -77,11 +75,7 @@ function Router() {
           <OrderTracking />
         </ProtectedRoute>
       </Route>
-      <Route path="/allergies">
-        <ProtectedRoute>
-          <Allergies />
-        </ProtectedRoute>
-      </Route>
+
       <Route path="/my-medications">
         <ProtectedRoute>
           <UserMedications />
@@ -122,11 +116,7 @@ function Router() {
           <OrderAdmin />
         </ProtectedRoute>
       </Route>
-      <Route path="/admin/allergies">
-        <ProtectedRoute>
-          <AllergiesAdmin />
-        </ProtectedRoute>
-      </Route>
+
       <Route path="/admin/inventory">
         <ProtectedRoute>
           <InventoryAdmin />

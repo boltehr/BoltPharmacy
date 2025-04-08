@@ -38,10 +38,7 @@ export const users = pgTable("users", {
   // User info
   dateOfBirth: text("date_of_birth"),
   sexAtBirth: text("sex_at_birth"),
-  // Allergies information
-  allergies: json("allergies").$type<string[]>().default([]),
-  noKnownAllergies: boolean("no_known_allergies").default(false),
-  allergiesVerified: boolean("allergies_verified").default(false),
+
   // Profile completion status
   profileCompleted: boolean("profile_completed").default(false),
   // User role - can be "user", "call_center", "pharmacist", "admin"

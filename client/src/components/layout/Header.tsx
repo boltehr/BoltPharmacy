@@ -111,17 +111,7 @@ const Header = () => {
                       {t("common.orders")}
                     </a>
                   </Link>
-                  <Link href="/allergies">
-                    <a
-                      className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
-                        isActive("/allergies")
-                          ? "border-primary text-primary"
-                          : "border-transparent hover:border-primary/50 hover:text-primary/90"
-                      }`}
-                    >
-                      {t("common.allergies")}
-                    </a>
-                  </Link>
+
                   <Link href="/my-medications">
                     <a
                       className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
@@ -245,13 +235,7 @@ const Header = () => {
                             </a>
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href="/admin/allergies">
-                            <a className="w-full cursor-pointer">
-                              {t("admin.allergies")}
-                            </a>
-                          </Link>
-                        </DropdownMenuItem>
+
                         <DropdownMenuItem asChild>
                           <Link href="/admin/inventory">
                             <a className="w-full cursor-pointer">
@@ -390,18 +374,7 @@ const Header = () => {
                   {t("common.profile")}
                 </a>
               </Link>
-              <Link href="/allergies">
-                <a
-                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-                    isActive("/allergies")
-                      ? "border-primary text-primary bg-primary/5"
-                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
-                  }`}
-                  onClick={() => setIsOpen(false)}
-                >
-                  {t("common.allergies")}
-                </a>
-              </Link>
+
               <Link href="/my-medications">
                 <a
                   className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
@@ -495,18 +468,7 @@ const Header = () => {
                     {t("admin.whiteLabel")}
                   </a>
                 </Link>
-                <Link href="/admin/allergies">
-                  <a
-                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
-                      isActive("/admin/allergies")
-                        ? "border-primary text-primary bg-primary/5"
-                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
-                    }`}
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {t("admin.allergies")}
-                  </a>
-                </Link>
+
                 <Link href="/admin/inventory">
                   <a
                     className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
