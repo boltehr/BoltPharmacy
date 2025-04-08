@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/select";
 import { Label } from '@/components/ui/label';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import { DeleteUserForm } from '@/components/admin/DeleteUserForm';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 // Role Management Dialog Component
@@ -185,124 +187,145 @@ export default function UserAdmin() {
         <p className="text-muted-foreground mt-2">View and manage user accounts in the system</p>
       </div>
 
-      <div className="mb-6 flex justify-between items-center">
-        <div className="relative w-full max-w-sm">
-          <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search users by name or email..."
-            className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+      <Tabs defaultValue="users" className="mb-6">
+        <TabsList>
+          <TabsTrigger value="users">User List</TabsTrigger>
+          <TabsTrigger value="delete">Delete User</TabsTrigger>
+        </TabsList>
+        <TabsContent value="users">
+          <div className="mb-6 flex justify-between items-center">
+            <div className="relative w-full max-w-sm">
+              <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search users by name or email..."
+                className="pl-8"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>User Accounts</CardTitle>
-          <CardDescription>
-            {filteredUsers?.length || 0} user accounts in the system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Profile</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers && filteredUsers.length > 0 ? (
-                    filteredUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.id}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          {user.firstName && user.lastName 
-                            ? `${user.firstName} ${user.lastName}`
-                            : <span className="text-muted-foreground italic">Not provided</span>}
-                        </TableCell>
-                        <TableCell>
-                          {user.role === 'admin' ? (
-                            <Badge variant="default" className="bg-red-500 hover:bg-red-600">
-                              {user.role}
-                            </Badge>
-                          ) : user.role === 'pharmacist' ? (
-                            <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
-                              {user.role}
-                            </Badge>
-                          ) : user.role === 'call_center' ? (
-                            <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">
-                              {user.role}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">
-                              {user.role}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {user.profileCompleted ? (
-                            <Badge variant="default" className="bg-green-500">Complete</Badge>
-                          ) : (
-                            <Badge variant="destructive">Incomplete</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <RoleManagementDialog 
-                              userId={user.id}
-                              userName={user.firstName && user.lastName 
-                                ? `${user.firstName} ${user.lastName}`
-                                : user.username || user.email || ''}
-                              currentRole={user.role || 'user'}
-                              onRoleChange={(userId, newRole) => {
-                                updateRoleMutation.mutate({ userId, role: newRole });
-                              }}
-                            />
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => {
-                                // Navigate to user detail view in the future
-                                toast({
-                                  title: 'Feature Coming Soon',
-                                  description: `Detailed view for user ${user.id} is under development.`
-                                });
-                              }}
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        </TableCell>
+          <Card>
+            <CardHeader>
+              <CardTitle>User Accounts</CardTitle>
+              <CardDescription>
+                {filteredUsers?.length || 0} user accounts in the system
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>ID</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Profile</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="h-24 text-center">
-                        {searchQuery 
-                          ? 'No users match your search' 
-                          : 'No users found in the system'}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers && filteredUsers.length > 0 ? (
+                        filteredUsers.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell className="font-medium">{user.id}</TableCell>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>
+                              {user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}`
+                                : <span className="text-muted-foreground italic">Not provided</span>}
+                            </TableCell>
+                            <TableCell>
+                              {user.role === 'admin' ? (
+                                <Badge variant="default" className="bg-red-500 hover:bg-red-600">
+                                  {user.role}
+                                </Badge>
+                              ) : user.role === 'pharmacist' ? (
+                                <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+                                  {user.role}
+                                </Badge>
+                              ) : user.role === 'call_center' ? (
+                                <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">
+                                  {user.role}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">
+                                  {user.role}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {user.profileCompleted ? (
+                                <Badge variant="default" className="bg-green-500">Complete</Badge>
+                              ) : (
+                                <Badge variant="destructive">Incomplete</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <RoleManagementDialog 
+                                  userId={user.id}
+                                  userName={user.firstName && user.lastName 
+                                    ? `${user.firstName} ${user.lastName}`
+                                    : user.username || user.email || ''}
+                                  currentRole={user.role || 'user'}
+                                  onRoleChange={(userId, newRole) => {
+                                    updateRoleMutation.mutate({ userId, role: newRole });
+                                  }}
+                                />
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    // Navigate to user detail view in the future
+                                    toast({
+                                      title: 'Feature Coming Soon',
+                                      description: `Detailed view for user ${user.id} is under development.`
+                                    });
+                                  }}
+                                >
+                                  View Details
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center">
+                            {searchQuery 
+                              ? 'No users match your search' 
+                              : 'No users found in the system'}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="delete">
+          <Card>
+            <CardHeader>
+              <CardTitle>Delete User Account</CardTitle>
+              <CardDescription>
+                Permanently remove a user from the system
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DeleteUserForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

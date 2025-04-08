@@ -115,6 +115,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to update user role" });
     }
   });
+  
+  // Delete user by email (admin only)
+  router.delete("/users/email/:email", isAdmin, async (req, res) => {
+    try {
+      const { email } = req.params;
+      
+      // First find the user by email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Delete the user
+      const deleted = await storage.deleteUser(user.id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete user" });
+      }
+      
+      res.status(200).json({ message: `User ${email} deleted successfully` });
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
 
   router.get("/users/:id", async (req, res) => {
     const user = await storage.getUser(Number(req.params.id));

@@ -33,6 +33,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   updateUserRole(id: number, role: string): Promise<boolean>;
+  deleteUser(id: number): Promise<boolean>;
   
   // Password reset methods
   storePasswordResetToken(userId: number, token: string, expiry: Date): Promise<boolean>;
@@ -465,6 +466,48 @@ export class MemStorage implements IStorage {
     // Update user role
     user.role = role;
     this.users.set(id, user);
+    return true;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    const user = await this.getUser(id);
+    if (!user) return false;
+    
+    // Delete related records
+    // Clear user's cart
+    const cart = await this.getCart(id);
+    if (cart) {
+      await this.clearCart(id);
+    }
+    
+    // Delete user's prescriptions
+    const prescriptions = await this.getPrescriptionsByUser(id);
+    for (const prescription of prescriptions) {
+      this.prescriptions.delete(prescription.id);
+    }
+    
+    // Delete user's orders
+    const orders = await this.getOrdersByUser(id);
+    for (const order of orders) {
+      this.orders.delete(order.id);
+      // Delete order items
+      this.orderItems.delete(order.id);
+    }
+    
+    // Delete user's insurance records
+    const insurances = await this.getInsurancesByUser(id);
+    for (const insurance of insurances) {
+      this.insurances.delete(insurance.id);
+    }
+    
+    // Delete user's medications
+    const userMedications = await this.getUserMedicationsByUser(id);
+    for (const userMed of userMedications) {
+      this.userMedications.delete(userMed.id);
+    }
+    
+    // Finally, delete the user
+    this.users.delete(id);
     return true;
   }
   
@@ -1780,6 +1823,50 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return !!updatedUser;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    try {
+      // Find user first to make sure it exists
+      const user = await this.getUser(id);
+      if (!user) return false;
+      
+      // Delete the user from the database 
+      // Using transaction to ensure all operations succeed or fail together
+      await db.transaction(async (tx) => {
+        // Delete user's orders items
+        const userOrders = await tx.select().from(orders).where(eq(orders.userId, id));
+        for (const order of userOrders) {
+          await tx.delete(orderItems).where(eq(orderItems.orderId, order.id));
+        }
+        
+        // Delete user's orders
+        await tx.delete(orders).where(eq(orders.userId, id));
+        
+        // Delete user's prescriptions
+        await tx.delete(prescriptions).where(eq(prescriptions.userId, id));
+        
+        // Delete user's insurances
+        await tx.delete(insurance).where(eq(insurance.userId, id));
+        
+        // Delete user's medications
+        await tx.delete(userMedications).where(eq(userMedications.userId, id));
+        
+        // Delete user's refill requests
+        await tx.delete(refillRequests).where(eq(refillRequests.userId, id));
+        
+        // Delete user's refill notifications
+        await tx.delete(refillNotifications).where(eq(refillNotifications.userId, id));
+        
+        // Finally, delete the user
+        await tx.delete(users).where(eq(users.id, id));
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return false;
+    }
   }
   
   // Password reset methods
