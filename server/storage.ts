@@ -69,6 +69,7 @@ export interface IStorage {
   getCategoryByName(name: string): Promise<Category | undefined>;
   getCategories(): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: number, category: Partial<InsertCategory>): Promise<Category | undefined>;
   
   // Prescription methods
   getPrescription(id: number): Promise<Prescription | undefined>;
@@ -624,6 +625,21 @@ export class MemStorage implements IStorage {
     };
     this.categories.set(id, newCategory);
     return newCategory;
+  }
+  
+  async updateCategory(id: number, categoryData: Partial<InsertCategory>): Promise<Category | undefined> {
+    const category = this.categories.get(id);
+    if (!category) return undefined;
+    
+    const updatedCategory: Category = {
+      ...category,
+      ...categoryData,
+      description: categoryData.description ?? category.description,
+      icon: categoryData.icon ?? category.icon
+    };
+    
+    this.categories.set(id, updatedCategory);
+    return updatedCategory;
   }
   
   // Prescription methods

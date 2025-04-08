@@ -105,18 +105,18 @@ export default function WhiteLabelAdmin() {
   
   // Get white label configurations
   const { 
-    data: whiteLabels = [],
+    data: whiteLabels = [] as WhiteLabel[],
     isLoading: isWhiteLabelsLoading
-  } = useQuery({
+  } = useQuery<WhiteLabel[]>({
     queryKey: ['/api/white-label'],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "throw" }),
   });
   
   // Current active white label
-  const activeWhiteLabel = whiteLabels.find(wl => wl.isActive) || null;
+  const activeWhiteLabel = whiteLabels.find((wl: WhiteLabel) => wl.isActive) || null;
   
   // Current default white label
-  const defaultWhiteLabel = whiteLabels.find(wl => wl.isDefault) || null;
+  const defaultWhiteLabel = whiteLabels.find((wl: WhiteLabel) => wl.isDefault) || null;
   
   // Create a new white label configuration
   const createWhiteLabelMutation = useMutation({

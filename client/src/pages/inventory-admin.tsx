@@ -104,6 +104,7 @@ type InventoryMapping = {
     id: number;
     name: string;
     externalId: string;
+    providerId: number;
   };
   provider?: {
     id: number;
