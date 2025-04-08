@@ -413,9 +413,9 @@ const MedicationAdmin = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState<string>("");
-  const [prescriptionFilter, setPrescriptionFilter] = useState<string>("");
-  const [stockFilter, setStockFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [prescriptionFilter, setPrescriptionFilter] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -487,13 +487,13 @@ const MedicationAdmin = () => {
       (med.genericName && med.genericName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (med.brandName && med.brandName.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesCategory = categoryFilter === "" || med.category === categoryFilter;
+    const matchesCategory = categoryFilter === "" || categoryFilter === "all" || med.category === categoryFilter;
     
-    const matchesPrescription = prescriptionFilter === "" || 
+    const matchesPrescription = prescriptionFilter === "" || prescriptionFilter === "all" || 
       (prescriptionFilter === "yes" && med.requiresPrescription) ||
       (prescriptionFilter === "no" && !med.requiresPrescription);
       
-    const matchesStock = stockFilter === "" || 
+    const matchesStock = stockFilter === "" || stockFilter === "all" || 
       (stockFilter === "yes" && med.inStock) ||
       (stockFilter === "no" && !med.inStock);
     
@@ -528,9 +528,9 @@ const MedicationAdmin = () => {
 
   const resetFilters = () => {
     setSearchTerm("");
-    setCategoryFilter("");
-    setPrescriptionFilter("");
-    setStockFilter("");
+    setCategoryFilter("all");
+    setPrescriptionFilter("all");
+    setStockFilter("all");
     setCurrentPage(1);
   };
   
@@ -602,7 +602,7 @@ const MedicationAdmin = () => {
                   <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Categories</SelectItem>
+                  <SelectItem value="all">All Categories</SelectItem>
                   {categories && Array.isArray(categories) && categories.length > 0 ? 
                     categories.filter(category => category && category.name).map(category => (
                       <SelectItem key={category.id} value={category.name}>
@@ -629,7 +629,7 @@ const MedicationAdmin = () => {
                     <SelectValue placeholder="Prescription" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="yes">Required</SelectItem>
                     <SelectItem value="no">Not Required</SelectItem>
                   </SelectContent>
@@ -648,7 +648,7 @@ const MedicationAdmin = () => {
                     <SelectValue placeholder="Stock" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                     <SelectItem value="yes">In Stock</SelectItem>
                     <SelectItem value="no">Out of Stock</SelectItem>
                   </SelectContent>
@@ -657,7 +657,7 @@ const MedicationAdmin = () => {
             </div>
           </div>
           
-          {(searchTerm || categoryFilter || prescriptionFilter || stockFilter) && (
+          {(searchTerm || categoryFilter !== "all" || prescriptionFilter !== "all" || stockFilter !== "all") && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
                 Showing {filteredMedications.length} {filteredMedications.length === 1 ? "result" : "results"}
@@ -681,7 +681,7 @@ const MedicationAdmin = () => {
               <AlertCircle className="h-8 w-8 mx-auto text-muted-foreground" />
               <h3 className="mt-2 text-lg font-medium">No medications found</h3>
               <p className="text-muted-foreground mt-1">
-                {searchTerm || categoryFilter || prescriptionFilter || stockFilter 
+                {searchTerm || categoryFilter !== "all" || prescriptionFilter !== "all" || stockFilter !== "all" 
                   ? "Try adjusting your filters or search criteria" 
                   : "Add your first medication to get started"}
               </p>
