@@ -1,122 +1,84 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { apiRequest } from "../queryClient";
-import { type CartItem } from "@shared/schema";
-import { useToast } from "@/hooks/use-toast";
+import { createContext, useState, useContext, ReactNode } from "react";
 
-interface CartContextType {
-  cart: CartItem[];
-  isOpen: boolean;
-  openCart: () => void;
-  closeCart: () => void;
-  addToCart: (item: CartItem) => Promise<void>;
-  removeFromCart: (medicationId: number) => Promise<void>;
-  updateQuantity: (medicationId: number, quantity: number) => Promise<void>;
-  clearCart: () => Promise<void>;
+export interface CartItem {
+  id: number;
+  name: string;
+  price: number;
+  dosage: string;
+  quantity: number;
+  imageUrl?: string;
+  requiresPrescription: boolean;
 }
 
-// Default user ID for demo purposes
-const DEFAULT_USER_ID = 1;
+export interface CartContextType {
+  isOpen: boolean;
+  toggleCart: () => void;
+  cartItems: CartItem[];
+  addToCart: (item: Omit<CartItem, 'quantity'>) => void;
+  removeFromCart: (itemId: number) => void;
+  updateQuantity: (itemId: number, quantity: number) => void;
+  clearCart: () => void;
+}
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+export const CartContext = createContext<CartContextType>({
+  isOpen: false,
+  toggleCart: () => {},
+  cartItems: [],
+  addToCart: () => {},
+  removeFromCart: () => {},
+  updateQuantity: () => {},
+  clearCart: () => {},
+});
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<CartItem[]>([]);
+export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { toast } = useToast();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
-  // Load cart on initial render
-  useEffect(() => {
-    const loadCart = async () => {
-      try {
-        const response = await fetch(`/api/cart/${DEFAULT_USER_ID}`);
-        const data = await response.json();
-        if (data && data.items) {
-          setCart(data.items);
-        }
-      } catch (error) {
-        console.error("Failed to load cart:", error);
-      }
-    };
-
-    loadCart();
-  }, []);
-
-  const openCart = () => setIsOpen(true);
-  const closeCart = () => setIsOpen(false);
-
-  const updateServerCart = async (items: CartItem[]) => {
-    try {
-      await apiRequest("POST", `/api/cart/${DEFAULT_USER_ID}`, { items });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update cart",
-        variant: "destructive",
-      });
-      console.error("Failed to update cart:", error);
-    }
+  const toggleCart = () => {
+    setIsOpen(!isOpen);
   };
 
-  const addToCart = async (item: CartItem) => {
-    const existingItemIndex = cart.findIndex(
-      (cartItem) => cartItem.medicationId === item.medicationId
-    );
-
-    let newCart: CartItem[];
-
-    if (existingItemIndex >= 0) {
-      // Update existing item
-      newCart = [...cart];
-      newCart[existingItemIndex] = {
-        ...newCart[existingItemIndex],
-        quantity: newCart[existingItemIndex].quantity + item.quantity,
-      };
-    } else {
-      // Add new item
-      newCart = [...cart, item];
-    }
-
-    setCart(newCart);
-    await updateServerCart(newCart);
-    
-    toast({
-      title: "Added to cart",
-      description: `${item.name} has been added to your cart`,
+  const addToCart = (item: Omit<CartItem, 'quantity'>) => {
+    setCartItems((prevItems) => {
+      // Check if item already exists
+      const existingItem = prevItems.find((i) => i.id === item.id);
+      
+      if (existingItem) {
+        // Increment quantity if item exists
+        return prevItems.map((i) =>
+          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      } else {
+        // Add new item with quantity 1
+        return [...prevItems, { ...item, quantity: 1 }];
+      }
     });
   };
 
-  const removeFromCart = async (medicationId: number) => {
-    const newCart = cart.filter((item) => item.medicationId !== medicationId);
-    setCart(newCart);
-    await updateServerCart(newCart);
+  const removeFromCart = (itemId: number) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
   };
 
-  const updateQuantity = async (medicationId: number, quantity: number) => {
-    if (quantity <= 0) {
-      await removeFromCart(medicationId);
-      return;
-    }
-
-    const newCart = cart.map((item) =>
-      item.medicationId === medicationId ? { ...item, quantity } : item
+  const updateQuantity = (itemId: number, quantity: number) => {
+    if (quantity < 1) return;
+    
+    setCartItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === itemId ? { ...item, quantity } : item
+      )
     );
-
-    setCart(newCart);
-    await updateServerCart(newCart);
   };
 
-  const clearCart = async () => {
-    setCart([]);
-    await updateServerCart([]);
+  const clearCart = () => {
+    setCartItems([]);
   };
 
   return (
     <CartContext.Provider
       value={{
-        cart,
         isOpen,
-        openCart,
-        closeCart,
+        toggleCart,
+        cartItems,
         addToCart,
         removeFromCart,
         updateQuantity,
@@ -126,12 +88,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       {children}
     </CartContext.Provider>
   );
-}
+};
 
-export function useCart() {
+export const useCart = () => {
   const context = useContext(CartContext);
   if (context === undefined) {
     throw new Error("useCart must be used within a CartProvider");
   }
   return context;
-}
+};

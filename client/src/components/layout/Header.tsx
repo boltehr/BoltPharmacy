@@ -1,7 +1,13 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/lib/context/auth";
-import { useCart } from "@/lib/context/cart";
+import { useTranslation } from "react-i18next";
+import { 
+  MenuIcon, 
+  X, 
+  ShoppingCart, 
+  User,
+  ChevronDown 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,176 +17,401 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ShoppingCart, User, Menu, X } from "lucide-react";
+import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
+import { useAuth } from "@/lib/context/auth";
+import { useCart } from "@/lib/context/cart";
+import { useWhiteLabel } from "@/lib/context/whiteLabel";
 
 const Header = () => {
+  const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { cart, openCart } = useCart();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { toggleCart, cartItems } = useCart();
+  const { config } = useWhiteLabel();
 
-  const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+  const isActive = (path: string) => {
+    return location === path || location.startsWith(`${path}/`);
+  };
 
-  const navLinks = [
-    { name: "Home", path: "/" },
-    { name: "Medications", path: "/medications" },
-    { name: "Prescriptions", path: "/prescriptions" },
-    { name: "My Orders", path: "/orders" },
-    { name: "Help", path: "/help" },
-  ];
+  const isAdmin = user?.role === "admin";
+
+  const cartItemCount = cartItems.reduce(
+    (total, item) => total + item.quantity,
+    0
+  );
 
   return (
-    <header className="sticky top-0 z-10 bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo and brand */}
-          <div className="flex items-center">
-            <Link href="/" className="flex items-center">
-              <span className="text-primary text-2xl font-bold">BoltEHR</span>
-              <span className="ml-1 text-neutral-600 text-lg">Pharmacy Platform</span>
-            </Link>
+    <header className="bg-background border-b">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between h-16">
+          <div className="flex">
+            <div className="flex-shrink-0 flex items-center">
+              <Link href="/">
+                <a className="text-xl font-bold text-primary">
+                  {config?.name || "BoltEHR Pharmacy"}
+                </a>
+              </Link>
+            </div>
+            <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
+              <Link href="/">
+                <a
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    isActive("/")
+                      ? "border-primary text-primary"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                >
+                  {t("common.home")}
+                </a>
+              </Link>
+              <Link href="/medications">
+                <a
+                  className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                    isActive("/medications")
+                      ? "border-primary text-primary"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                >
+                  {t("common.medications")}
+                </a>
+              </Link>
+              {user && (
+                <>
+                  <Link href="/prescriptions">
+                    <a
+                      className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                        isActive("/prescriptions")
+                          ? "border-primary text-primary"
+                          : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                      }`}
+                    >
+                      {t("common.prescriptions")}
+                    </a>
+                  </Link>
+                  <Link href="/orders">
+                    <a
+                      className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium ${
+                        isActive("/orders")
+                          ? "border-primary text-primary"
+                          : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                      }`}
+                    >
+                      {t("common.orders")}
+                    </a>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
+            <LanguageSwitcher />
+            
+            {user ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleCart}
+                  className="relative"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {cartItemCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                      {cartItemCount}
+                    </span>
+                  )}
+                </Button>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                      <User className="h-5 w-5" />
+                      <span className="max-w-[100px] truncate">{user.email}</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>{t("common.account")}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/account">
+                        <a className="w-full cursor-pointer">
+                          {t("common.profile")}
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/orders">
+                        <a className="w-full cursor-pointer">
+                          {t("common.orders")}
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/prescriptions">
+                        <a className="w-full cursor-pointer">
+                          {t("common.prescriptions")}
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
+
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>{t("common.admin")}</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/medications">
+                            <a className="w-full cursor-pointer">
+                              {t("admin.medications")}
+                            </a>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/users">
+                            <a className="w-full cursor-pointer">
+                              {t("admin.users")}
+                            </a>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/orders">
+                            <a className="w-full cursor-pointer">
+                              {t("admin.orders")}
+                            </a>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/prescriptions/verification">
+                            <a className="w-full cursor-pointer">
+                              {t("admin.prescriptions")}
+                            </a>
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/white-label">
+                            <a className="w-full cursor-pointer">
+                              {t("admin.whiteLabel")}
+                            </a>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={logout}
+                      className="cursor-pointer"
+                    >
+                      {t("common.logout")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <Link href="/auth">
+                <a>
+                  <Button variant="default" size="sm">
+                    {t("common.login")}
+                  </Button>
+                </a>
+              </Link>
+            )}
           </div>
 
-          {/* Navigation for desktop */}
-          <nav className="hidden md:flex space-x-8 text-sm">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                href={link.path}
-                className={`px-3 py-2 font-medium ${
-                  location === link.path
-                    ? "text-neutral-900"
-                    : "text-neutral-600 hover:text-primary"
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </nav>
-
-          {/* User menu and cart */}
-          <div className="flex items-center space-x-4">
-            <div className="relative">
+          <div className="flex items-center sm:hidden">
+            {user && (
               <Button
                 variant="ghost"
-                size="icon"
-                className="p-1 rounded-full text-neutral-600 hover:text-primary focus:outline-none"
-                onClick={openCart}
+                size="sm"
+                onClick={toggleCart}
+                className="relative mr-2"
               >
                 <ShoppingCart className="h-5 w-5" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-destructive text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {totalItems}
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {cartItemCount}
                   </span>
                 )}
               </Button>
-            </div>
-
-            <div className="relative">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center text-sm font-medium text-neutral-700 hover:text-primary"
-                  >
-                    <span>My Account</span>
-                    <User className="ml-1 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {user ? (
-                    <>
-                      <DropdownMenuLabel>{user.firstName} {user.lastName}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/account">Account Settings</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/orders">My Orders</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/prescriptions">My Prescriptions</Link>
-                      </DropdownMenuItem>
-                      {user.role === 'admin' && (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuLabel>Admin</DropdownMenuLabel>
-                          <DropdownMenuItem asChild>
-                            <Link href="/admin/white-label">White Label Config</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/admin/insurance-providers">Insurance Providers</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/admin/medications">Medication Management</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/admin/users">User Management</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/admin/prescriptions/verification">Prescription Verification</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href="/admin/orders">Order Management</Link>
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={logout}>
-                        Logout
-                      </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link href="/auth">Sign In</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href="/auth">Create Account</Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            )}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-gray-700 focus:outline-none"
             >
-              {mobileMenuOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </Button>
+              <span className="sr-only">
+                {isOpen ? "Close menu" : "Open menu"}
+              </span>
+              {isOpen ? <X className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* Mobile menu */}
+      <div className={`sm:hidden ${isOpen ? "block" : "hidden"}`}>
+        <div className="pt-2 pb-3 space-y-1">
+          <Link href="/">
+            <a
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive("/")
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent hover:border-primary/50 hover:text-primary/90"
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              {t("common.home")}
+            </a>
+          </Link>
+          <Link href="/medications">
+            <a
+              className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                isActive("/medications")
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-transparent hover:border-primary/50 hover:text-primary/90"
+              }`}
+              onClick={() => setIsOpen(false)}
+            >
+              {t("common.medications")}
+            </a>
+          </Link>
+          {user && (
+            <>
+              <Link href="/prescriptions">
+                <a
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    isActive("/prescriptions")
+                      ? "border-primary text-primary bg-primary/5"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {t("common.prescriptions")}
+                </a>
+              </Link>
+              <Link href="/orders">
+                <a
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    isActive("/orders")
+                      ? "border-primary text-primary bg-primary/5"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {t("common.orders")}
+                </a>
+              </Link>
+              <Link href="/account">
+                <a
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    isActive("/account")
+                      ? "border-primary text-primary bg-primary/5"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {t("common.profile")}
+                </a>
+              </Link>
+            </>
+          )}
+
+          {user && isAdmin && (
+            <>
+              <div className="border-t border-gray-200 pt-2 mt-2">
+                <div className="px-4 py-2 text-sm font-semibold">
+                  {t("common.admin")}
+                </div>
+                <Link href="/admin/medications">
+                  <a
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      isActive("/admin/medications")
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {t("admin.medications")}
+                  </a>
+                </Link>
+                <Link href="/admin/users">
+                  <a
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      isActive("/admin/users")
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {t("admin.users")}
+                  </a>
+                </Link>
+                <Link href="/admin/orders">
+                  <a
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      isActive("/admin/orders")
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {t("admin.orders")}
+                  </a>
+                </Link>
+                <Link href="/admin/prescriptions/verification">
+                  <a
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      isActive("/admin/prescriptions/verification")
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {t("admin.prescriptions")}
+                  </a>
+                </Link>
+                <Link href="/admin/white-label">
+                  <a
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      isActive("/admin/white-label")
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {t("admin.whiteLabel")}
+                  </a>
+                </Link>
+              </div>
+            </>
+          )}
+
+          <div className="flex items-center space-x-4 px-4 py-2">
+            <LanguageSwitcher />
+            
+            {user ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  logout();
+                  setIsOpen(false);
+                }}
+              >
+                {t("common.logout")}
+              </Button>
+            ) : (
+              <Link href="/auth">
+                <a onClick={() => setIsOpen(false)}>
+                  <Button variant="default" size="sm">
+                    {t("common.login")}
+                  </Button>
+                </a>
+              </Link>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Mobile menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t">
-          <div className="px-2 pt-2 pb-3 space-y-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                href={link.path}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location === link.path
-                    ? "text-neutral-900 bg-neutral-100"
-                    : "text-neutral-600 hover:bg-neutral-100"
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
     </header>
   );
 };

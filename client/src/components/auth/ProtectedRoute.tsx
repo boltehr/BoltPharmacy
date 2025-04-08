@@ -1,37 +1,47 @@
-import { useAuth } from "@/lib/context/auth";
-import { ReactNode } from "react";
-import { Redirect, useLocation } from "wouter";
+import { ReactNode, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/context/auth";
 
-type ProtectedRouteProps = {
+interface ProtectedRouteProps {
   children: ReactNode;
   requireProfileComplete?: boolean;
-};
+}
 
-export default function ProtectedRoute({ 
-  children, 
-  requireProfileComplete = true 
-}: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
-  const [location] = useLocation();
+const ProtectedRoute = ({
+  children,
+  requireProfileComplete = true,
+}: ProtectedRouteProps) => {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
 
-  if (isLoading) {
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        // Not logged in, redirect to auth page
+        setLocation("/auth");
+      } else if (requireProfileComplete && !user.isProfileComplete) {
+        // Profile not complete, redirect to complete profile page
+        setLocation("/complete-profile");
+      }
+    }
+  }, [user, loading, setLocation, requireProfileComplete]);
+
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (!user) {
-    return <Redirect to={`/auth?redirect=${encodeURIComponent(location)}`} />;
-  }
-  
-  // If profile completion is required and profile is not complete,
-  // redirect to the profile completion page
-  if (requireProfileComplete && !user.profileCompleted && location !== '/complete-profile') {
-    return <Redirect to={`/complete-profile?redirect=${encodeURIComponent(location)}`} />;
+  // If the user is authenticated and profile is complete (if required), render the children
+  if (user && (user.isProfileComplete || !requireProfileComplete)) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
-}
+  // Don't render anything while redirecting
+  return null;
+};
+
+export default ProtectedRoute;
