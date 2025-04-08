@@ -54,6 +54,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all users (admin only)
+  router.get("/users", isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
   router.get("/users/:id", async (req, res) => {
     const user = await storage.getUser(Number(req.params.id));
     if (!user) {
