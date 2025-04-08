@@ -27,7 +27,7 @@ const Header = () => {
   const [location] = useLocation();
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { toggleCart, cartItems } = useCart();
+  const { toggleCart, cartItems, isGuestCart } = useCart();
   const { config } = useWhiteLabel();
 
   const isActive = (path: string) => {
@@ -129,22 +129,25 @@ const Header = () => {
           <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-4">
             <LanguageSwitcher />
             
+            {/* Show cart button for both logged in users and guest users (when allowed) */}
+            {(user || isGuestCart) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleCart}
+                className="relative"
+              >
+                <ShoppingCart className="h-5 w-5" />
+                {cartItemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {cartItemCount}
+                  </span>
+                )}
+              </Button>
+            )}
+            
             {user ? (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleCart}
-                  className="relative"
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  {cartItemCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                      {cartItemCount}
-                    </span>
-                  )}
-                </Button>
-
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="flex items-center gap-1">
@@ -256,7 +259,8 @@ const Header = () => {
           </div>
 
           <div className="flex items-center sm:hidden">
-            {user && (
+            {/* Show cart button for both logged in users and guest users on mobile (when allowed) */}
+            {(user || isGuestCart) && (
               <Button
                 variant="ghost"
                 size="sm"
