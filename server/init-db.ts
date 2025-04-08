@@ -8,18 +8,14 @@ import { hashPassword, initializeAdminUser } from './auth';
 export async function initializeDatabase() {
   console.log('Initializing database with sample data...');
   
-  try {
-    // First, check if we already have categories
-    const existingCategories = await storage.getCategories();
-    if (existingCategories.length > 0) {
-      console.log('Database already initialized with categories');
-      return;
-    }
-  } catch (error) {
-    console.error('Failed to check existing categories:', error);
-    // Continue with initialization if we can't check for existing data
-    // This helps with initial setup when tables might not exist
-  }
+  // Force reinitialization of users regardless of existing data
+  console.log('Forcing reinitialization of users...');
+  
+  // Debug: List all existing users before initialization
+  const existingUsers = await storage.getAllUsers();
+  console.log('Existing users before initialization:', 
+    existingUsers.map(u => ({id: u.id, email: u.email, role: u.role}))
+  );
   
   // Add test user
   const testUser: InsertUser = {
