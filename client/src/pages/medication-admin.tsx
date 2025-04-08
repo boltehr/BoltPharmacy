@@ -47,6 +47,10 @@ const MedicationForm = ({
   onClose?: () => void,
   categories?: any[]
 }) => {
+  // Ensure categories array is valid
+  if (!Array.isArray(categories)) {
+    categories = [];
+  }
   const [formData, setFormData] = useState({
     name: "",
     genericName: "",
@@ -205,17 +209,15 @@ const MedicationForm = ({
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {categories && categories.length > 0 ? (
-                  categories.map((category) => (
-                    category.name ? (
-                      <SelectItem key={category.id} value={category.name || `category-${category.id}`}>
-                        {category.name}
-                      </SelectItem>
-                    ) : null
+                {categories && Array.isArray(categories) && categories.length > 0 ? 
+                  categories.filter(category => category && category.name).map(category => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
+                    </SelectItem>
                   ))
-                ) : (
+                : 
                   <SelectItem value="no-category">No categories available</SelectItem>
-                )}
+                }
               </SelectContent>
             </Select>
           </div>
@@ -411,9 +413,9 @@ const MedicationAdmin = () => {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [categoryFilter, setCategoryFilter] = useState("");
-  const [prescriptionFilter, setPrescriptionFilter] = useState("");
-  const [stockFilter, setStockFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+  const [prescriptionFilter, setPrescriptionFilter] = useState<string>("");
+  const [stockFilter, setStockFilter] = useState<string>("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -601,17 +603,15 @@ const MedicationAdmin = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="">All Categories</SelectItem>
-                  {categories && categories.length > 0 ? (
-                    categories.map((category: any) => (
-                      category.name ? (
-                        <SelectItem key={category.id} value={category.name || `category-${category.id}`}>
-                          {category.name}
-                        </SelectItem>
-                      ) : null
+                  {categories && Array.isArray(categories) && categories.length > 0 ? 
+                    categories.filter(category => category && category.name).map(category => (
+                      <SelectItem key={category.id} value={category.name}>
+                        {category.name}
+                      </SelectItem>
                     ))
-                  ) : (
+                  : 
                     <SelectItem value="no-categories">No categories available</SelectItem>
-                  )}
+                  }
                 </SelectContent>
               </Select>
             </div>
