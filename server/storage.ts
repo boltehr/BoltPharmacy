@@ -32,6 +32,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   
+  // Allergy methods
+  updateUserAllergies(id: number, allergies: string[], noKnownAllergies: boolean): Promise<User | undefined>;
+  verifyUserAllergies(id: number): Promise<User | undefined>;
+  getUsersWithoutVerifiedAllergies(): Promise<User[]>;
+  
   // Session store
   sessionStore: session.Store;
   
@@ -409,6 +414,40 @@ export class MemStorage implements IStorage {
     const updatedUser: User = { ...user, ...userData };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+  
+  // Allergy methods
+  async updateUserAllergies(id: number, allergies: string[], noKnownAllergies: boolean): Promise<User | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    const updatedUser: User = { 
+      ...user, 
+      allergies, 
+      noKnownAllergies,
+      // Mark allergies as not yet verified
+      allergiesVerified: false 
+    };
+    
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async verifyUserAllergies(id: number): Promise<User | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    const updatedUser: User = { 
+      ...user, 
+      allergiesVerified: true 
+    };
+    
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+  
+  async getUsersWithoutVerifiedAllergies(): Promise<User[]> {
+    return Array.from(this.users.values()).filter(user => !user.allergiesVerified);
   }
   
   // Medication methods
@@ -1411,6 +1450,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updatedUser;
+  }
+  
+  // Allergy methods
+  async updateUserAllergies(id: number, allergies: string[], noKnownAllergies: boolean): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        allergies,
+        noKnownAllergies,
+        allergiesVerified: false
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  async verifyUserAllergies(id: number): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        allergiesVerified: true
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+  
+  async getUsersWithoutVerifiedAllergies(): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.allergiesVerified, false))
+      .execute();
   }
 
   // Medication methods

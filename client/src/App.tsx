@@ -22,6 +22,7 @@ import Account from "@/pages/account";
 import OrderHistory from "@/pages/order-history";
 import OrderTracking from "@/pages/order-tracking";
 import CompleteProfile from "@/pages/complete-profile";
+import Allergies from "@/pages/allergies";
 
 // Admin components
 import WhiteLabelAdmin from "@/pages/white-label-admin";
@@ -30,6 +31,7 @@ import MedicationAdmin from "@/pages/medication-admin";
 import UserAdmin from "@/pages/user-admin";
 import PrescriptionVerification from "@/pages/prescription-verification";
 import OrderAdmin from "@/pages/order-admin";
+import AllergiesAdmin from "@/pages/allergies-admin";
 
 function Router() {
   return (
@@ -68,6 +70,11 @@ function Router() {
           <OrderTracking />
         </ProtectedRoute>
       </Route>
+      <Route path="/allergies">
+        <ProtectedRoute>
+          <Allergies />
+        </ProtectedRoute>
+      </Route>
       <Route path="/admin/white-label">
         <ProtectedRoute>
           <WhiteLabelAdmin />
@@ -96,6 +103,11 @@ function Router() {
       <Route path="/admin/orders">
         <ProtectedRoute>
           <OrderAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/allergies">
+        <ProtectedRoute>
+          <AllergiesAdmin />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />

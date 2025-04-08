@@ -33,6 +33,9 @@ export interface User {
   isProfileComplete: boolean;
   createdAt: string;
   updatedAt?: string;
+  allergies?: string[];
+  noKnownAllergies?: boolean;
+  allergiesVerified?: boolean;
 }
 
 interface LoginCredentials {
@@ -52,6 +55,7 @@ export interface AuthContextType {
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<void>;
+  refetchUser: () => Promise<User | null>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -62,6 +66,7 @@ export const AuthContext = createContext<AuthContextType>({
   register: async () => {},
   logout: async () => {},
   updateProfile: async () => {},
+  refetchUser: async () => null,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -219,6 +224,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     }
   };
+  
+  const refetchUser = async (): Promise<User | null> => {
+    try {
+      setLoading(true);
+      const response = await apiRequest("GET", "/api/user");
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+        return data;
+      } else {
+        setUser(null);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error fetching user data:", err);
+      setUser(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AuthContext.Provider
@@ -230,6 +257,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         logout,
         updateProfile,
+        refetchUser,
       }}
     >
       {children}

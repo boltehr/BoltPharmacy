@@ -101,6 +101,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Allergy management routes
+  router.put("/users/:id/allergies", isAuthenticated, async (req, res) => {
+    try {
+      // Check if the authenticated user is updating their own allergies
+      if (req.user?.id !== Number(req.params.id)) {
+        return res.status(403).json({ message: "You can only update your own allergies" });
+      }
+      
+      const { allergies, noKnownAllergies } = req.body;
+      
+      // Validate the input
+      if (!Array.isArray(allergies) && typeof noKnownAllergies !== 'boolean') {
+        return res.status(400).json({ message: "Invalid allergies data. Provide an array of allergies and a boolean for noKnownAllergies." });
+      }
+      
+      // Apply the update
+      const user = await storage.updateUserAllergies(
+        Number(req.params.id), 
+        allergies || [], 
+        noKnownAllergies || false
+      );
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update session user data
+      if (req.user) {
+        Object.assign(req.user, user);
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error("Error updating user allergies:", err);
+      res.status(500).json({ message: "Failed to update allergies" });
+    }
+  });
+  
+  // Admin route to verify allergies
+  router.put("/users/:id/allergies/verify", isAdmin, async (req, res) => {
+    try {
+      const user = await storage.verifyUserAllergies(Number(req.params.id));
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (err) {
+      console.error("Error verifying allergies:", err);
+      res.status(500).json({ message: "Failed to verify allergies" });
+    }
+  });
+  
+  // Admin route to get users without verified allergies
+  router.get("/users/allergies/unverified", isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getUsersWithoutVerifiedAllergies();
+      res.json(users);
+    } catch (err) {
+      console.error("Error fetching unverified allergies:", err);
+      res.status(500).json({ message: "Failed to fetch users with unverified allergies" });
+    }
+  });
+  
   // Medication routes
   router.get("/medications", async (req, res) => {
     const limit = req.query.limit ? Number(req.query.limit) : 100;
