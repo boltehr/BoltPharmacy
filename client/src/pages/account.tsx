@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Helmet } from "react-helmet-async";
-import { LogIn } from "lucide-react";
+import { Link } from "wouter";
+import { LogIn, CreditCard } from "lucide-react";
 import {
   Form,
   FormControl,
@@ -173,9 +174,10 @@ const Account = () => {
       </div>
       
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full md:w-auto grid-cols-2 md:inline-flex">
+        <TabsList className="grid w-full md:w-auto grid-cols-3 md:inline-flex">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
         
         <TabsContent value="profile" className="mt-6">
@@ -416,6 +418,40 @@ const Account = () => {
                   </Button>
                 </form>
               </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="payments" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Methods</CardTitle>
+              <CardDescription>
+                Manage your payment methods for orders
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center p-4 bg-muted rounded-lg border">
+                  <div className="flex items-center gap-4">
+                    <CreditCard className="h-8 w-8 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">No payment methods saved</p>
+                      <p className="text-sm text-muted-foreground">Add a payment method to make checkout faster</p>
+                    </div>
+                  </div>
+                  <Link to="/payment-methods">
+                    <Button>
+                      Add Payment Method
+                    </Button>
+                  </Link>
+                </div>
+                
+                <div className="text-sm text-muted-foreground">
+                  <p>Your payment information is securely stored and processed by our payment provider.</p>
+                  <p className="mt-2">We support credit cards, Apple Pay, and Google Pay.</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

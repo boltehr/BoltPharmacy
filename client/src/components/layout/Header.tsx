@@ -187,6 +187,13 @@ const Header = () => {
                         </a>
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/payment-methods">
+                        <a className="w-full cursor-pointer">
+                          {t("common.paymentMethods", "Payment Methods")}
+                        </a>
+                      </Link>
+                    </DropdownMenuItem>
 
                     {isAdmin && (
                       <>
@@ -375,6 +382,18 @@ const Header = () => {
                   onClick={() => setIsOpen(false)}
                 >
                   {t("common.myMedications")}
+                </a>
+              </Link>
+              <Link href="/payment-methods">
+                <a
+                  className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                    isActive("/payment-methods")
+                      ? "border-primary text-primary bg-primary/5"
+                      : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {t("common.paymentMethods", "Payment Methods")}
                 </a>
               </Link>
             </>

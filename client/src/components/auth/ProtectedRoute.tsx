@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({
   children,
-  requireProfileComplete = true,
+  requireProfileComplete = false,
 }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();

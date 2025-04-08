@@ -14,44 +14,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 // Login form schema
 const loginFormSchema = z.object({
   email: z.string()
-    .email("Please enter a valid email address")
-    .refine(email => email.includes("@") && email.includes("."), {
-      message: "Please enter a valid email address with domain (e.g., name@example.com)"
-    }),
+    .email("Please enter a valid email address (e.g., name@example.com)"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 // Register form schema with strong password requirements and confirmation
 const registerFormSchema = z.object({
   email: z.string()
-    .email("Please enter a valid email address")
-    .refine(email => email.includes("@") && email.includes("."), {
-      message: "Please enter a valid email address with domain (e.g., name@example.com)"
-    })
-    // Validate that the email domain actually exists (enhanced check)
-    .refine(email => {
-      const domain = email.split('@')[1];
-      if (!domain) return false;
-      
-      // Check if domain has at least one dot and proper format
-      if (!domain.includes('.') || domain.endsWith('.') || domain.startsWith('.')) {
-        return false;
-      }
-      
-      // Check if TLD (Top Level Domain) is at least 2 characters
-      const tld = domain.split('.').pop();
-      if (!tld || tld.length < 2) {
-        return false;
-      }
-      
-      // Check for common valid TLDs
-      const validTLDs = ['com', 'org', 'net', 'edu', 'gov', 'mil', 'int', 'io', 'co', 'ai', 'app', 
-        'dev', 'info', 'biz', 'name', 'pro', 'health', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn'];
-      
-      return validTLDs.includes(tld) || tld.length >= 2;
-    }, {
-      message: "Please enter an email with a valid domain (e.g., gmail.com, outlook.com)"
-    }),
+    .email("Please enter a valid email address (e.g., name@example.com)"),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
     .refine(password => /[A-Z]/.test(password), {

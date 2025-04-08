@@ -24,6 +24,7 @@ import OrderTracking from "@/pages/order-tracking";
 import CompleteProfile from "@/pages/complete-profile";
 import Allergies from "@/pages/allergies";
 import UserMedications from "@/pages/user-medications";
+import PaymentMethods from "@/pages/payment-methods";
 
 // Admin components
 import WhiteLabelAdmin from "@/pages/white-label-admin";
@@ -52,7 +53,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/checkout">
-        <ProtectedRoute>
+        <ProtectedRoute requireProfileComplete={true}>
           <Checkout />
         </ProtectedRoute>
       </Route>
@@ -79,6 +80,11 @@ function Router() {
       <Route path="/my-medications">
         <ProtectedRoute>
           <UserMedications />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/payment-methods">
+        <ProtectedRoute>
+          <PaymentMethods />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/white-label">
