@@ -20,7 +20,7 @@ const ProtectedRoute = ({
       if (!user) {
         // Not logged in, redirect to auth page
         setLocation("/auth");
-      } else if (requireProfileComplete && !user.isProfileComplete) {
+      } else if (requireProfileComplete && !user.profileCompleted) {
         // Profile not complete, redirect to complete profile page
         setLocation("/complete-profile");
       }
@@ -36,7 +36,7 @@ const ProtectedRoute = ({
   }
 
   // If the user is authenticated and profile is complete (if required), render the children
-  if (user && (user.isProfileComplete || !requireProfileComplete)) {
+  if (user && (user.profileCompleted || !requireProfileComplete)) {
     return <>{children}</>;
   }
 

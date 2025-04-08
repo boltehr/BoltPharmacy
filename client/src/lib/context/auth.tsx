@@ -28,11 +28,22 @@ export interface UserProfile {
 export interface User {
   id: number;
   email: string;
-  role: "user" | "admin";
-  profile?: UserProfile;
-  isProfileComplete: boolean;
-  createdAt: string;
-  updatedAt?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  billingAddress?: string | null;
+  billingCity?: string | null;
+  billingState?: string | null;
+  billingZipCode?: string | null;
+  sameAsShipping?: boolean | null;
+  dateOfBirth?: string | null;
+  sexAtBirth?: string | null;
+  role: string;
+  profileCompleted: boolean;
   allergies?: string[];
   noKnownAllergies?: boolean;
   allergiesVerified?: boolean;

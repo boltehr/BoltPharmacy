@@ -14,7 +14,7 @@ const Checkout = () => {
   
   // Check if user has completed profile
   useEffect(() => {
-    if (user && !user.isProfileComplete) {
+    if (user && !user.profileCompleted) {
       // Redirect to profile completion page with return URL
       navigate(`/complete-profile?redirect=${encodeURIComponent('/checkout')}`);
     }
