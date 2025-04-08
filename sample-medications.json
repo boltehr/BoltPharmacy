@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lisinopril",
+    "genericName": "Lisinopril",
+    "brandName": "Prinivil, Zestril",
+    "manufacturer": "Various Manufacturers",
+    "description": "Used to treat high blood pressure and heart failure.",
+    "dosage": "10mg, 20mg, 40mg tablets",
+    "category": "Blood Pressure",
+    "price": 12.99,
+    "discountPrice": 8.99,
+    "inStock": true,
+    "requiresPrescription": true,
+    "sideEffects": "Dizziness, headache, dry cough, fatigue",
+    "warnings": "Should not be used during pregnancy",
+    "imageUrl": "/images/medications/default.jpg"
+  },
+  {
+    "name": "Atorvastatin",
+    "genericName": "Atorvastatin",
+    "brandName": "Lipitor",
+    "manufacturer": "Various Manufacturers",
+    "description": "Used to lower cholesterol and to prevent cardiovascular disease.",
+    "dosage": "10mg, 20mg, 40mg, 80mg tablets",
+    "category": "Cholesterol",
+    "price": 18.99,
+    "discountPrice": 12.99,
+    "inStock": true,
+    "requiresPrescription": true,
+    "sideEffects": "Muscle pain, digestive problems, mild memory loss",
+    "warnings": "Tell your doctor if you experience unexplained muscle pain",
+    "imageUrl": "/images/medications/default.jpg"
+  }
+]

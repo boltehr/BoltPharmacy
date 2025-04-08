@@ -115,14 +115,29 @@ export const prescriptions = pgTable("prescriptions", {
   doctorName: text("doctor_name"),
   doctorPhone: text("doctor_phone"),
   uploadDate: timestamp("upload_date").defaultNow(),
-  status: text("status").default("pending"),
+  status: text("status").default("pending"), // pending, approved, rejected, cancelled
   fileUrl: text("file_url"),
   notes: text("notes"),
+  // Verification fields
+  verificationStatus: text("verification_status").default("unverified"), // unverified, verified, failed
+  verifiedBy: integer("verified_by").references(() => users.id),
+  verificationDate: timestamp("verification_date"),
+  verificationMethod: text("verification_method"), // manual, automated, phone
+  verificationNotes: text("verification_notes"),
+  expirationDate: timestamp("expiration_date"), // When the prescription expires
+  securityCode: text("security_code"), // Unique code for additional verification
+  revoked: boolean("revoked").default(false), // If prescription was revoked after approval
+  revokedReason: text("revoked_reason"),
 });
 
 export const insertPrescriptionSchema = createInsertSchema(prescriptions).omit({
   id: true,
   uploadDate: true,
+  verificationStatus: true,
+  verifiedBy: true,
+  verificationDate: true,
+  securityCode: true,
+  revoked: true,
 });
 
 // Orders schema

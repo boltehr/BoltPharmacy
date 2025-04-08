@@ -269,6 +269,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(prescriptions);
   });
   
+  // Get all prescriptions for verification (admin only)
+  router.get("/prescriptions/verification/queue", isAdmin, async (req, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const offset = req.query.offset ? Number(req.query.offset) : 0;
+      
+      const prescriptions = await storage.getPrescriptionsForVerification(status, limit, offset);
+      
+      // Get associated user data for each prescription
+      const prescriptionsWithUsers = await Promise.all(
+        prescriptions.map(async (prescription) => {
+          const user = await storage.getUser(prescription.userId);
+          return {
+            ...prescription,
+            user: user ? {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              phone: user.phone
+            } : null
+          };
+        })
+      );
+      
+      res.json(prescriptionsWithUsers);
+    } catch (error) {
+      console.error("Error fetching verification queue:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   router.get("/prescriptions/:id", async (req, res) => {
     const prescription = await storage.getPrescription(Number(req.params.id));
     if (!prescription) {
@@ -301,6 +334,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(sortedOrders);
     } catch (error) {
       console.error("Error fetching prescription orders:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Verify a prescription (admin only)
+  router.post("/prescriptions/:id/verify", isAdmin, async (req, res) => {
+    try {
+      const prescriptionId = Number(req.params.id);
+      const verifierId = req.user?.id;
+      
+      if (!verifierId) {
+        return res.status(401).json({ message: "Verification requires authentication" });
+      }
+      
+      // Validate request body
+      const { verificationStatus, verificationMethod, verificationNotes, expirationDate, status } = req.body;
+      
+      if (!verificationStatus || !verificationMethod) {
+        return res.status(400).json({ 
+          message: "Missing required fields: verificationStatus and verificationMethod are required" 
+        });
+      }
+      
+      const prescription = await storage.verifyPrescription(prescriptionId, verifierId, {
+        verificationStatus,
+        verificationMethod,
+        verificationNotes,
+        expirationDate: expirationDate ? new Date(expirationDate) : undefined,
+        status
+      });
+      
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      
+      res.json(prescription);
+    } catch (error) {
+      console.error("Error verifying prescription:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Revoke a prescription (admin only)
+  router.post("/prescriptions/:id/revoke", isAdmin, async (req, res) => {
+    try {
+      const prescriptionId = Number(req.params.id);
+      const { reason } = req.body;
+      
+      if (!reason) {
+        return res.status(400).json({ message: "Revocation reason is required" });
+      }
+      
+      const prescription = await storage.revokePrescription(prescriptionId, reason);
+      
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      
+      res.json(prescription);
+    } catch (error) {
+      console.error("Error revoking prescription:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Generate a new security code for a prescription (admin only)
+  router.post("/prescriptions/:id/security-code", isAdmin, async (req, res) => {
+    try {
+      const prescriptionId = Number(req.params.id);
+      
+      const securityCode = await storage.generateSecurityCode(prescriptionId);
+      
+      res.json({ securityCode });
+    } catch (error) {
+      console.error("Error generating security code:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Validate a prescription for a specific medication
+  router.get("/prescriptions/:id/validate/:medicationId", async (req, res) => {
+    try {
+      const prescriptionId = Number(req.params.id);
+      const medicationId = Number(req.params.medicationId);
+      
+      const result = await storage.validatePrescriptionForMedication(prescriptionId, medicationId);
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error validating prescription:", error);
       res.status(500).json({ message: "Server error" });
     }
   });

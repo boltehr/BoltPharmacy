@@ -28,6 +28,7 @@ import WhiteLabelAdmin from "@/pages/white-label-admin";
 import InsuranceProviderAdmin from "@/pages/insurance-provider-admin";
 import MedicationAdmin from "@/pages/medication-admin";
 import UserAdmin from "@/pages/user-admin";
+import PrescriptionVerification from "@/pages/prescription-verification";
 
 function Router() {
   return (
@@ -84,6 +85,11 @@ function Router() {
       <Route path="/admin/users">
         <ProtectedRoute>
           <UserAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/prescriptions/verification">
+        <ProtectedRoute>
+          <PrescriptionVerification />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />

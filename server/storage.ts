@@ -58,8 +58,27 @@ export interface IStorage {
   // Prescription methods
   getPrescription(id: number): Promise<Prescription | undefined>;
   getPrescriptionsByUser(userId: number): Promise<Prescription[]>;
+  getPrescriptionsForVerification(status?: string, limit?: number, offset?: number): Promise<Prescription[]>;
   createPrescription(prescription: InsertPrescription): Promise<Prescription>;
   updatePrescription(id: number, prescription: Partial<InsertPrescription>): Promise<Prescription | undefined>;
+  
+  // Prescription verification methods
+  verifyPrescription(id: number, verifierId: number, verificationData: {
+    verificationStatus: string,
+    verificationMethod: string,
+    verificationNotes?: string,
+    expirationDate?: Date,
+    status?: string
+  }): Promise<Prescription | undefined>;
+  
+  revokePrescription(id: number, reason: string): Promise<Prescription | undefined>;
+  
+  generateSecurityCode(prescriptionId: number): Promise<string>;
+  
+  validatePrescriptionForMedication(prescriptionId: number, medicationId: number): Promise<{
+    valid: boolean,
+    reason?: string
+  }>;
   
   // Order methods
   getOrder(id: number): Promise<Order | undefined>;
@@ -436,9 +455,32 @@ export class MemStorage implements IStorage {
     return Array.from(this.prescriptions.values()).filter(prescription => prescription.userId === userId);
   }
   
+  async getPrescriptionsForVerification(status?: string, limit = 20, offset = 0): Promise<Prescription[]> {
+    let prescriptions = Array.from(this.prescriptions.values());
+    
+    if (status) {
+      // Filter by verification status if provided
+      prescriptions = prescriptions.filter(prescription => prescription.verificationStatus === status);
+    } else {
+      // Default to showing unverified prescriptions
+      prescriptions = prescriptions.filter(prescription => prescription.verificationStatus === "unverified");
+    }
+    
+    // Sort by upload date, newest first
+    prescriptions.sort((a, b) => {
+      const dateA = a.uploadDate ? new Date(a.uploadDate).getTime() : 0;
+      const dateB = b.uploadDate ? new Date(b.uploadDate).getTime() : 0;
+      return dateB - dateA;
+    });
+    
+    return prescriptions.slice(offset, offset + limit);
+  }
+  
   async createPrescription(prescription: InsertPrescription): Promise<Prescription> {
     const id = this.prescriptionIdCounter++;
     const now = new Date();
+    const securityCode = this.generateRandomSecurityCode();
+    
     const newPrescription: Prescription = { 
       ...prescription, 
       id, 
@@ -447,7 +489,17 @@ export class MemStorage implements IStorage {
       doctorName: prescription.doctorName ?? null,
       doctorPhone: prescription.doctorPhone ?? null,
       fileUrl: prescription.fileUrl ?? null,
-      notes: prescription.notes ?? null
+      notes: prescription.notes ?? null,
+      // Added default values for verification fields
+      verificationStatus: "unverified",
+      verifiedBy: null,
+      verificationDate: null,
+      verificationMethod: null,
+      verificationNotes: null,
+      expirationDate: null,
+      securityCode,
+      revoked: false,
+      revokedReason: null
     };
     this.prescriptions.set(id, newPrescription);
     return newPrescription;
@@ -460,6 +512,108 @@ export class MemStorage implements IStorage {
     const updatedPrescription: Prescription = { ...prescription, ...prescriptionData };
     this.prescriptions.set(id, updatedPrescription);
     return updatedPrescription;
+  }
+  
+  // Helper method to generate a random security code
+  private generateRandomSecurityCode(): string {
+    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluding confusing characters like 0, O, 1, I
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+  }
+  
+  // Prescription verification methods
+  async verifyPrescription(id: number, verifierId: number, verificationData: {
+    verificationStatus: string,
+    verificationMethod: string,
+    verificationNotes?: string,
+    expirationDate?: Date,
+    status?: string
+  }): Promise<Prescription | undefined> {
+    const prescription = await this.getPrescription(id);
+    if (!prescription) return undefined;
+    
+    const now = new Date();
+    // Calculate default expiration date (1 year from verification)
+    const defaultExpirationDate = new Date();
+    defaultExpirationDate.setFullYear(defaultExpirationDate.getFullYear() + 1);
+    
+    const updatedPrescription: Prescription = { 
+      ...prescription,
+      verificationStatus: verificationData.verificationStatus,
+      verifiedBy: verifierId,
+      verificationDate: now,
+      verificationMethod: verificationData.verificationMethod,
+      verificationNotes: verificationData.verificationNotes ?? null,
+      expirationDate: verificationData.expirationDate ?? defaultExpirationDate,
+      // Update the main status as well if provided
+      status: verificationData.status ?? prescription.status
+    };
+    
+    this.prescriptions.set(id, updatedPrescription);
+    return updatedPrescription;
+  }
+  
+  async revokePrescription(id: number, reason: string): Promise<Prescription | undefined> {
+    const prescription = await this.getPrescription(id);
+    if (!prescription) return undefined;
+    
+    const updatedPrescription: Prescription = { 
+      ...prescription,
+      revoked: true,
+      revokedReason: reason,
+      status: 'rejected' // Update the main status as well
+    };
+    
+    this.prescriptions.set(id, updatedPrescription);
+    return updatedPrescription;
+  }
+  
+  async generateSecurityCode(prescriptionId: number): Promise<string> {
+    const prescription = await this.getPrescription(prescriptionId);
+    if (!prescription) throw new Error("Prescription not found");
+    
+    // Generate a new security code
+    const securityCode = this.generateRandomSecurityCode();
+    
+    // Update the prescription with the new code
+    prescription.securityCode = securityCode;
+    this.prescriptions.set(prescriptionId, prescription);
+    
+    return securityCode;
+  }
+  
+  async validatePrescriptionForMedication(prescriptionId: number, medicationId: number): Promise<{
+    valid: boolean,
+    reason?: string
+  }> {
+    const prescription = await this.getPrescription(prescriptionId);
+    if (!prescription) {
+      return { valid: false, reason: "Prescription not found" };
+    }
+    
+    // Check if prescription is verified
+    if (prescription.verificationStatus !== "verified") {
+      return { valid: false, reason: "Prescription has not been verified" };
+    }
+    
+    // Check if prescription is revoked
+    if (prescription.revoked) {
+      return { valid: false, reason: "Prescription has been revoked: " + prescription.revokedReason };
+    }
+    
+    // Check if prescription is expired
+    if (prescription.expirationDate && new Date() > new Date(prescription.expirationDate)) {
+      return { valid: false, reason: "Prescription has expired" };
+    }
+    
+    // Verify the medication is appropriate for this prescription
+    // In a real system, this would check the medications listed in the prescription
+    // For this demo, we'll consider all medications valid for any verified prescription
+    
+    return { valid: true };
   }
   
   // Order methods
@@ -1032,9 +1186,39 @@ export class DatabaseStorage implements IStorage {
   async getPrescriptionsByUser(userId: number): Promise<Prescription[]> {
     return await db.select().from(prescriptions).where(eq(prescriptions.userId, userId));
   }
+  
+  async getPrescriptionsForVerification(status?: string, limit = 20, offset = 0): Promise<Prescription[]> {
+    // Execute the full query at once to avoid type issues
+    if (status) {
+      return await db
+        .select()
+        .from(prescriptions)
+        .where(eq(prescriptions.verificationStatus, status))
+        .orderBy(desc(prescriptions.uploadDate))
+        .limit(limit)
+        .offset(offset);
+    } else {
+      return await db
+        .select()
+        .from(prescriptions)
+        .where(eq(prescriptions.verificationStatus, "unverified"))
+        .orderBy(desc(prescriptions.uploadDate))
+        .limit(limit)
+        .offset(offset);
+    }
+  }
 
   async createPrescription(prescription: InsertPrescription): Promise<Prescription> {
-    const [newPrescription] = await db.insert(prescriptions).values(prescription).returning();
+    // Generate security code
+    const securityCode = this.generateRandomSecurityCode();
+    
+    const [newPrescription] = await db.insert(prescriptions).values({
+      ...prescription,
+      verificationStatus: "unverified",
+      securityCode: securityCode,
+      revoked: false
+    }).returning();
+    
     return newPrescription;
   }
 
@@ -1045,6 +1229,108 @@ export class DatabaseStorage implements IStorage {
       .where(eq(prescriptions.id, id))
       .returning();
     return updatedPrescription;
+  }
+  
+  // Helper method to generate a random security code
+  private generateRandomSecurityCode(): string {
+    const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluding confusing characters like 0, O, 1, I
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return code;
+  }
+  
+  // Prescription verification methods
+  async verifyPrescription(id: number, verifierId: number, verificationData: {
+    verificationStatus: string,
+    verificationMethod: string,
+    verificationNotes?: string,
+    expirationDate?: Date,
+    status?: string
+  }): Promise<Prescription | undefined> {
+    const now = new Date();
+    // Calculate default expiration date (1 year from verification)
+    const defaultExpirationDate = new Date();
+    defaultExpirationDate.setFullYear(defaultExpirationDate.getFullYear() + 1);
+    
+    const [updatedPrescription] = await db
+      .update(prescriptions)
+      .set({
+        verificationStatus: verificationData.verificationStatus,
+        verifiedBy: verifierId,
+        verificationDate: now,
+        verificationMethod: verificationData.verificationMethod,
+        verificationNotes: verificationData.verificationNotes ?? null,
+        expirationDate: verificationData.expirationDate ?? defaultExpirationDate,
+        status: verificationData.status ?? "approved" // Default to approved if status not provided
+      })
+      .where(eq(prescriptions.id, id))
+      .returning();
+      
+    return updatedPrescription;
+  }
+  
+  async revokePrescription(id: number, reason: string): Promise<Prescription | undefined> {
+    const [updatedPrescription] = await db
+      .update(prescriptions)
+      .set({
+        revoked: true,
+        revokedReason: reason,
+        status: 'rejected'
+      })
+      .where(eq(prescriptions.id, id))
+      .returning();
+      
+    return updatedPrescription;
+  }
+  
+  async generateSecurityCode(prescriptionId: number): Promise<string> {
+    const securityCode = this.generateRandomSecurityCode();
+    
+    const [updatedPrescription] = await db
+      .update(prescriptions)
+      .set({ securityCode })
+      .where(eq(prescriptions.id, prescriptionId))
+      .returning();
+      
+    if (!updatedPrescription) {
+      throw new Error("Prescription not found");
+    }
+    
+    return securityCode;
+  }
+  
+  async validatePrescriptionForMedication(prescriptionId: number, medicationId: number): Promise<{
+    valid: boolean,
+    reason?: string
+  }> {
+    const [prescription] = await db
+      .select()
+      .from(prescriptions)
+      .where(eq(prescriptions.id, prescriptionId));
+      
+    if (!prescription) {
+      return { valid: false, reason: "Prescription not found" };
+    }
+    
+    // Check if prescription is verified
+    if (prescription.verificationStatus !== "verified") {
+      return { valid: false, reason: "Prescription has not been verified" };
+    }
+    
+    // Check if prescription is revoked
+    if (prescription.revoked) {
+      return { valid: false, reason: "Prescription has been revoked: " + prescription.revokedReason };
+    }
+    
+    // Check if prescription is expired
+    if (prescription.expirationDate && new Date() > new Date(prescription.expirationDate)) {
+      return { valid: false, reason: "Prescription has expired" };
+    }
+    
+    // For this demo, we'll consider all medications valid for any verified prescription
+    return { valid: true };
   }
 
   // Order methods

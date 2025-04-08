@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Lisinopril",
+    "genericName": "Lisinopril",
+    "brandName": "Prinivil, Zestril",
+    "manufacturer": "Various Manufacturers",
+    "description": "Lisinopril is an ACE inhibitor used to treat high blood pressure and heart failure. It can also improve survival after a heart attack and prevent kidney problems in people with diabetes.",
+    "dosage": "Available in 2.5mg, 5mg, 10mg, 20mg, 30mg, 40mg tablets",
+    "category": "Blood Pressure",
+    "price": 12.99,
+    "discountPrice": 4.99,
+    "inStock": true,
+    "requiresPrescription": true,
+    "sideEffects": "Dizziness, headache, dry cough, fatigue, elevated potassium levels",
+    "warnings": "May cause harm to an unborn baby. Do not use if pregnant or planning to become pregnant. May cause angioedema (swelling of face, lips, tongue, throat).",
+    "imageUrl": "/images/medications/default.jpg"
+  },
+  {
+    "name": "Atorvastatin",
+    "genericName": "Atorvastatin",
+    "brandName": "Lipitor",
+    "manufacturer": "Various Manufacturers",
+    "description": "Atorvastatin belongs to a group of drugs called HMG CoA reductase inhibitors, or 'statins'. It reduces levels of bad cholesterol (LDL) and triglycerides in the blood, while increasing levels of good cholesterol (HDL).",
+    "dosage": "Available in 10mg, 20mg, 40mg, 80mg tablets",
+    "category": "Cholesterol",
+    "price": 18.99,
+    "discountPrice": 7.5,
+    "inStock": true,
+    "requiresPrescription": true,
+    "sideEffects": "Muscle pain, joint pain, digestive problems, mild memory problems or confusion",
+    "warnings": "Contact your doctor immediately if you experience unexplained muscle pain, tenderness, or weakness, especially if accompanied by fever or tiredness.",
+    "imageUrl": "/images/medications/default.jpg"
+  }
+]
