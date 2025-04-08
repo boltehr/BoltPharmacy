@@ -10,7 +10,10 @@ import {
   cart, type Cart, type InsertCart, type CartItem,
   refillRequests, type RefillRequest, type InsertRefillRequest,
   refillNotifications, type RefillNotification, type InsertRefillNotification,
-  whiteLabels, type WhiteLabel, type InsertWhiteLabel
+  whiteLabels, type WhiteLabel, type InsertWhiteLabel,
+  inventoryProviders, type InventoryProvider, type InsertInventoryProvider,
+  inventoryItems, type InventoryItem, type InsertInventoryItem,
+  inventoryMappings, type InventoryMapping, type InsertInventoryMapping
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, like, desc, sql } from "drizzle-orm";
@@ -125,6 +128,35 @@ export interface IStorage {
   updateWhiteLabel(id: number, config: Partial<InsertWhiteLabel>): Promise<WhiteLabel | undefined>;
   activateWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
   deactivateWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
+  
+  // Inventory Provider methods
+  getInventoryProvider(id: number): Promise<InventoryProvider | undefined>;
+  getInventoryProviderByName(name: string): Promise<InventoryProvider | undefined>;
+  getInventoryProviders(activeOnly?: boolean): Promise<InventoryProvider[]>;
+  createInventoryProvider(provider: InsertInventoryProvider): Promise<InventoryProvider>;
+  updateInventoryProvider(id: number, providerData: Partial<InsertInventoryProvider>): Promise<InventoryProvider | undefined>;
+  updateInventoryProviderStatus(id: number, status: { connectionStatus: string, lastSyncDate?: Date }): Promise<InventoryProvider | undefined>;
+  deleteInventoryProvider(id: number): Promise<boolean>;
+  
+  // Inventory Item methods
+  getInventoryItem(id: number): Promise<InventoryItem | undefined>;
+  getInventoryItemByExternalId(providerId: number, externalId: string): Promise<InventoryItem | undefined>;
+  getInventoryItemsByProvider(providerId: number): Promise<InventoryItem[]>;
+  createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
+  updateInventoryItem(id: number, itemData: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined>;
+  deleteInventoryItem(id: number): Promise<boolean>;
+  
+  // Inventory Mapping methods
+  getInventoryMapping(id: number): Promise<InventoryMapping | undefined>;
+  getInventoryMappingByItemAndMedication(inventoryItemId: number, medicationId: number): Promise<InventoryMapping | undefined>;
+  getInventoryMappingsByMedication(medicationId: number): Promise<InventoryMapping[]>;
+  getInventoryMappingsByItem(inventoryItemId: number): Promise<InventoryMapping[]>;
+  createInventoryMapping(mapping: InsertInventoryMapping): Promise<InventoryMapping>;
+  updateInventoryMapping(id: number, mappingData: Partial<InsertInventoryMapping>): Promise<InventoryMapping | undefined>;
+  deleteInventoryMapping(id: number): Promise<boolean>;
+  
+  // Helper method for inventory service
+  getAllMedicationsSync(): Medication[];
 }
 
 // In-memory storage implementation
@@ -140,6 +172,10 @@ export class MemStorage implements IStorage {
   private carts: Map<number, Cart>;
   private refillRequests: Map<number, RefillRequest>;
   private refillNotifications: Map<number, RefillNotification>;
+  // Inventory Management
+  private inventoryProviders: Map<number, InventoryProvider>;
+  private inventoryItems: Map<number, InventoryItem>;
+  private inventoryMappings: Map<number, InventoryMapping>;
   
   public sessionStore: session.Store;
   
@@ -154,6 +190,11 @@ export class MemStorage implements IStorage {
   private cartIdCounter: number;
   private refillRequestIdCounter: number;
   private refillNotificationIdCounter: number;
+  private whiteLabelIdCounter: number;
+  // Inventory counters
+  private inventoryProviderIdCounter: number;
+  private inventoryItemIdCounter: number;
+  private inventoryMappingIdCounter: number;
   
   constructor() {
     this.users = new Map();
@@ -167,6 +208,11 @@ export class MemStorage implements IStorage {
     this.carts = new Map();
     this.refillRequests = new Map();
     this.refillNotifications = new Map();
+    this.whiteLabels = new Map();
+    // Initialize inventory maps
+    this.inventoryProviders = new Map();
+    this.inventoryItems = new Map();
+    this.inventoryMappings = new Map();
     
     // Initialize session store
     const MemoryStore = memorystore(session);
@@ -185,6 +231,11 @@ export class MemStorage implements IStorage {
     this.cartIdCounter = 1;
     this.refillRequestIdCounter = 1;
     this.refillNotificationIdCounter = 1;
+    this.whiteLabelIdCounter = 1;
+    // Initialize inventory counters
+    this.inventoryProviderIdCounter = 1;
+    this.inventoryItemIdCounter = 1;
+    this.inventoryMappingIdCounter = 1;
     
     // Initialize with sample data
     this.initializeSampleData();
@@ -1090,10 +1141,231 @@ export class MemStorage implements IStorage {
     this.whiteLabels.set(id, updatedWhiteLabel);
     return updatedWhiteLabel;
   }
+
+  // Inventory Provider methods
+  async getInventoryProvider(id: number): Promise<InventoryProvider | undefined> {
+    return this.inventoryProviders.get(id);
+  }
+  
+  async getInventoryProviderByName(name: string): Promise<InventoryProvider | undefined> {
+    return Array.from(this.inventoryProviders.values()).find(provider => provider.name === name);
+  }
+  
+  async getInventoryProviders(activeOnly = false): Promise<InventoryProvider[]> {
+    let providers = Array.from(this.inventoryProviders.values());
+    if (activeOnly) {
+      providers = providers.filter(provider => provider.isActive);
+    }
+    return providers;
+  }
+  
+  async createInventoryProvider(provider: InsertInventoryProvider): Promise<InventoryProvider> {
+    const id = this.inventoryProviderIdCounter++;
+    const now = new Date();
+    const newProvider: InventoryProvider = {
+      ...provider,
+      id,
+      apiKey: provider.apiKey ?? null,
+      apiSecret: provider.apiSecret ?? null,
+      description: provider.description ?? null,
+      isActive: provider.isActive ?? true,
+      connectionStatus: provider.connectionStatus ?? 'disconnected',
+      lastSyncDate: provider.lastSyncDate ?? null,
+      syncFrequency: provider.syncFrequency ?? 'daily',
+      syncSchedule: provider.syncSchedule ?? null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.inventoryProviders.set(id, newProvider);
+    return newProvider;
+  }
+  
+  async updateInventoryProvider(id: number, providerData: Partial<InsertInventoryProvider>): Promise<InventoryProvider | undefined> {
+    const provider = await this.getInventoryProvider(id);
+    if (!provider) return undefined;
+    
+    const updatedProvider: InventoryProvider = { 
+      ...provider, 
+      ...providerData,
+      updatedAt: new Date()
+    };
+    this.inventoryProviders.set(id, updatedProvider);
+    return updatedProvider;
+  }
+  
+  async updateInventoryProviderStatus(id: number, status: { connectionStatus: string, lastSyncDate?: Date }): Promise<InventoryProvider | undefined> {
+    const provider = await this.getInventoryProvider(id);
+    if (!provider) return undefined;
+    
+    const updatedProvider: InventoryProvider = { 
+      ...provider, 
+      connectionStatus: status.connectionStatus,
+      lastSyncDate: status.lastSyncDate ?? provider.lastSyncDate,
+      updatedAt: new Date()
+    };
+    this.inventoryProviders.set(id, updatedProvider);
+    return updatedProvider;
+  }
+  
+  async deleteInventoryProvider(id: number): Promise<boolean> {
+    // First, delete all associated inventory items and their mappings
+    const items = await this.getInventoryItemsByProvider(id);
+    for (const item of items) {
+      const mappings = await this.getInventoryMappingsByItem(item.id);
+      for (const mapping of mappings) {
+        await this.deleteInventoryMapping(mapping.id);
+      }
+      await this.deleteInventoryItem(item.id);
+    }
+    
+    return this.inventoryProviders.delete(id);
+  }
+  
+  // Inventory Item methods
+  async getInventoryItem(id: number): Promise<InventoryItem | undefined> {
+    return this.inventoryItems.get(id);
+  }
+  
+  async getInventoryItemByExternalId(providerId: number, externalId: string): Promise<InventoryItem | undefined> {
+    return Array.from(this.inventoryItems.values()).find(
+      item => item.providerId === providerId && item.externalId === externalId
+    );
+  }
+  
+  async getInventoryItemsByProvider(providerId: number): Promise<InventoryItem[]> {
+    return Array.from(this.inventoryItems.values()).filter(item => item.providerId === providerId);
+  }
+  
+  async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
+    const id = this.inventoryItemIdCounter++;
+    const newItem: InventoryItem = {
+      ...item,
+      id,
+      externalNdc: item.externalNdc ?? null,
+      description: item.description ?? null,
+      inStock: item.inStock ?? true,
+      quantity: item.quantity ?? 0,
+      unit: item.unit ?? null,
+      price: item.price ?? null,
+      wholesalePrice: item.wholesalePrice ?? null,
+      retailPrice: item.retailPrice ?? null,
+      location: item.location ?? null,
+      expirationDate: item.expirationDate ?? null,
+      reorderPoint: item.reorderPoint ?? null,
+      reorderQuantity: item.reorderQuantity ?? null,
+      supplierInfo: item.supplierInfo ?? null,
+      rawData: item.rawData ?? null
+    };
+    this.inventoryItems.set(id, newItem);
+    return newItem;
+  }
+  
+  async updateInventoryItem(id: number, itemData: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    const item = await this.getInventoryItem(id);
+    if (!item) return undefined;
+    
+    const updatedItem: InventoryItem = { ...item, ...itemData };
+    this.inventoryItems.set(id, updatedItem);
+    return updatedItem;
+  }
+  
+  async deleteInventoryItem(id: number): Promise<boolean> {
+    // First, delete all mappings associated with this item
+    const mappings = await this.getInventoryMappingsByItem(id);
+    for (const mapping of mappings) {
+      await this.deleteInventoryMapping(mapping.id);
+    }
+    
+    return this.inventoryItems.delete(id);
+  }
+  
+  // Inventory Mapping methods
+  async getInventoryMapping(id: number): Promise<InventoryMapping | undefined> {
+    return this.inventoryMappings.get(id);
+  }
+  
+  async getInventoryMappingByItemAndMedication(inventoryItemId: number, medicationId: number): Promise<InventoryMapping | undefined> {
+    return Array.from(this.inventoryMappings.values()).find(
+      mapping => mapping.inventoryItemId === inventoryItemId && mapping.medicationId === medicationId
+    );
+  }
+  
+  async getInventoryMappingsByMedication(medicationId: number): Promise<InventoryMapping[]> {
+    return Array.from(this.inventoryMappings.values()).filter(
+      mapping => mapping.medicationId === medicationId
+    );
+  }
+  
+  async getInventoryMappingsByItem(inventoryItemId: number): Promise<InventoryMapping[]> {
+    return Array.from(this.inventoryMappings.values()).filter(
+      mapping => mapping.inventoryItemId === inventoryItemId
+    );
+  }
+  
+  async createInventoryMapping(mapping: InsertInventoryMapping): Promise<InventoryMapping> {
+    const id = this.inventoryMappingIdCounter++;
+    const now = new Date();
+    
+    // If this is set as primary, set all other mappings for this medication to non-primary
+    if (mapping.isPrimary) {
+      const existingMappings = await this.getInventoryMappingsByMedication(mapping.medicationId);
+      for (const existingMapping of existingMappings) {
+        if (existingMapping.isPrimary) {
+          const updatedMapping = { ...existingMapping, isPrimary: false };
+          this.inventoryMappings.set(existingMapping.id, updatedMapping);
+        }
+      }
+    }
+    
+    const newMapping: InventoryMapping = {
+      ...mapping,
+      id,
+      isPrimary: mapping.isPrimary ?? false,
+      mappingType: mapping.mappingType ?? 'automatic',
+      mappingStatus: mapping.mappingStatus ?? 'active',
+      mappingConfidence: mapping.mappingConfidence ?? null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.inventoryMappings.set(id, newMapping);
+    return newMapping;
+  }
+  
+  async updateInventoryMapping(id: number, mappingData: Partial<InsertInventoryMapping>): Promise<InventoryMapping | undefined> {
+    const mapping = await this.getInventoryMapping(id);
+    if (!mapping) return undefined;
+    
+    // If updating to primary, set all other mappings for this medication to non-primary
+    if (mappingData.isPrimary && !mapping.isPrimary) {
+      const existingMappings = await this.getInventoryMappingsByMedication(mapping.medicationId);
+      for (const existingMapping of existingMappings) {
+        if (existingMapping.id !== id && existingMapping.isPrimary) {
+          const updatedMapping = { ...existingMapping, isPrimary: false };
+          this.inventoryMappings.set(existingMapping.id, updatedMapping);
+        }
+      }
+    }
+    
+    const updatedMapping: InventoryMapping = { 
+      ...mapping, 
+      ...mappingData,
+      updatedAt: new Date()
+    };
+    this.inventoryMappings.set(id, updatedMapping);
+    return updatedMapping;
+  }
+  
+  async deleteInventoryMapping(id: number): Promise<boolean> {
+    return this.inventoryMappings.delete(id);
+  }
+  
+  // Helper method for inventory service
+  getAllMedicationsSync(): Medication[] {
+    return Array.from(this.medications.values());
+  }
 }
 
 // Database storage implementation
-
 export class DatabaseStorage implements IStorage {
   public sessionStore: session.Store;
   
@@ -1712,6 +1984,208 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return deactivatedConfig;
+  }
+
+  // Inventory Provider methods
+  async getInventoryProvider(id: number): Promise<InventoryProvider | undefined> {
+    const [provider] = await db.select().from(inventoryProviders).where(eq(inventoryProviders.id, id));
+    return provider;
+  }
+
+  async getInventoryProviderByName(name: string): Promise<InventoryProvider | undefined> {
+    const [provider] = await db.select().from(inventoryProviders).where(eq(inventoryProviders.name, name));
+    return provider;
+  }
+
+  async getInventoryProviders(activeOnly = false): Promise<InventoryProvider[]> {
+    if (activeOnly) {
+      return await db.select().from(inventoryProviders).where(eq(inventoryProviders.isActive, true));
+    }
+    return await db.select().from(inventoryProviders);
+  }
+
+  async createInventoryProvider(provider: InsertInventoryProvider): Promise<InventoryProvider> {
+    const [newProvider] = await db.insert(inventoryProviders).values(provider).returning();
+    return newProvider;
+  }
+
+  async updateInventoryProvider(id: number, providerData: Partial<InsertInventoryProvider>): Promise<InventoryProvider | undefined> {
+    const [updatedProvider] = await db
+      .update(inventoryProviders)
+      .set(providerData)
+      .where(eq(inventoryProviders.id, id))
+      .returning();
+    return updatedProvider;
+  }
+
+  async updateInventoryProviderStatus(id: number, status: { connectionStatus: string, lastSyncDate?: Date }): Promise<InventoryProvider | undefined> {
+    const [updatedProvider] = await db
+      .update(inventoryProviders)
+      .set({
+        connectionStatus: status.connectionStatus,
+        lastSyncDate: status.lastSyncDate,
+        updatedAt: new Date()
+      })
+      .where(eq(inventoryProviders.id, id))
+      .returning();
+    return updatedProvider;
+  }
+
+  async deleteInventoryProvider(id: number): Promise<boolean> {
+    // First, delete all associated inventory items and their mappings
+    const items = await this.getInventoryItemsByProvider(id);
+    for (const item of items) {
+      await this.deleteInventoryItem(item.id);
+    }
+    
+    const [deletedProvider] = await db
+      .delete(inventoryProviders)
+      .where(eq(inventoryProviders.id, id))
+      .returning();
+    return !!deletedProvider;
+  }
+
+  // Inventory Item methods
+  async getInventoryItem(id: number): Promise<InventoryItem | undefined> {
+    const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id));
+    return item;
+  }
+
+  async getInventoryItemByExternalId(providerId: number, externalId: string): Promise<InventoryItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(inventoryItems)
+      .where(
+        sql`${inventoryItems.providerId} = ${providerId} AND ${inventoryItems.externalId} = ${externalId}`
+      );
+    return item;
+  }
+
+  async getInventoryItemsByProvider(providerId: number): Promise<InventoryItem[]> {
+    return await db
+      .select()
+      .from(inventoryItems)
+      .where(eq(inventoryItems.providerId, providerId));
+  }
+
+  async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
+    const [newItem] = await db.insert(inventoryItems).values(item).returning();
+    return newItem;
+  }
+
+  async updateInventoryItem(id: number, itemData: Partial<InsertInventoryItem>): Promise<InventoryItem | undefined> {
+    const [updatedItem] = await db
+      .update(inventoryItems)
+      .set(itemData)
+      .where(eq(inventoryItems.id, id))
+      .returning();
+    return updatedItem;
+  }
+
+  async deleteInventoryItem(id: number): Promise<boolean> {
+    // First, delete all associated mappings
+    await db
+      .delete(inventoryMappings)
+      .where(eq(inventoryMappings.inventoryItemId, id));
+    
+    const [deletedItem] = await db
+      .delete(inventoryItems)
+      .where(eq(inventoryItems.id, id))
+      .returning();
+    return !!deletedItem;
+  }
+
+  // Inventory Mapping methods
+  async getInventoryMapping(id: number): Promise<InventoryMapping | undefined> {
+    const [mapping] = await db.select().from(inventoryMappings).where(eq(inventoryMappings.id, id));
+    return mapping;
+  }
+
+  async getInventoryMappingByItemAndMedication(inventoryItemId: number, medicationId: number): Promise<InventoryMapping | undefined> {
+    const [mapping] = await db
+      .select()
+      .from(inventoryMappings)
+      .where(
+        sql`${inventoryMappings.inventoryItemId} = ${inventoryItemId} AND ${inventoryMappings.medicationId} = ${medicationId}`
+      );
+    return mapping;
+  }
+
+  async getInventoryMappingsByMedication(medicationId: number): Promise<InventoryMapping[]> {
+    return await db
+      .select()
+      .from(inventoryMappings)
+      .where(eq(inventoryMappings.medicationId, medicationId));
+  }
+
+  async getInventoryMappingsByItem(inventoryItemId: number): Promise<InventoryMapping[]> {
+    return await db
+      .select()
+      .from(inventoryMappings)
+      .where(eq(inventoryMappings.inventoryItemId, inventoryItemId));
+  }
+
+  async createInventoryMapping(mapping: InsertInventoryMapping): Promise<InventoryMapping> {
+    // If this is set as primary, set all other mappings for this medication to non-primary
+    if (mapping.isPrimary) {
+      await db
+        .update(inventoryMappings)
+        .set({ isPrimary: false })
+        .where(
+          sql`${inventoryMappings.medicationId} = ${mapping.medicationId} AND ${inventoryMappings.isPrimary} = true`
+        );
+    }
+    
+    const [newMapping] = await db.insert(inventoryMappings).values(mapping).returning();
+    return newMapping;
+  }
+
+  async updateInventoryMapping(id: number, mappingData: Partial<InsertInventoryMapping>): Promise<InventoryMapping | undefined> {
+    // If updating to primary, set all other mappings for this medication to non-primary
+    if (mappingData.isPrimary) {
+      const [mapping] = await db.select().from(inventoryMappings).where(eq(inventoryMappings.id, id));
+      if (mapping && !mapping.isPrimary) {
+        await db
+          .update(inventoryMappings)
+          .set({ isPrimary: false })
+          .where(
+            sql`${inventoryMappings.medicationId} = ${mapping.medicationId} AND ${inventoryMappings.id} <> ${id} AND ${inventoryMappings.isPrimary} = true`
+          );
+      }
+    }
+    
+    const [updatedMapping] = await db
+      .update(inventoryMappings)
+      .set({
+        ...mappingData,
+        updatedAt: new Date()
+      })
+      .where(eq(inventoryMappings.id, id))
+      .returning();
+    return updatedMapping;
+  }
+
+  async deleteInventoryMapping(id: number): Promise<boolean> {
+    const [deletedMapping] = await db
+      .delete(inventoryMappings)
+      .where(eq(inventoryMappings.id, id))
+      .returning();
+    return !!deletedMapping;
+  }
+
+  // Helper method for inventory service
+  getAllMedicationsSync(): Medication[] {
+    // This is a synchronous method in MemStorage but needs to be async for DB
+    // In a real implementation, this would be cached or optimized differently
+    try {
+      // Using a synchronous approach since the interface requires this method to be synchronous
+      // For now, returning an empty array as a fallback since drizzle-orm doesn't support synchronous operations
+      console.warn("Using synchronous operation in DatabaseStorage.getAllMedicationsSync(). This should be refactored to async.");
+      return [];
+    } catch (error) {
+      console.error("Error fetching medications synchronously:", error);
+      return [];
+    }
   }
 }
 

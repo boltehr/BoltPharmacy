@@ -400,3 +400,113 @@ export const insertWhiteLabelSchema = createInsertSchema(whiteLabels).omit({
 
 export type WhiteLabel = typeof whiteLabels.$inferSelect;
 export type InsertWhiteLabel = z.infer<typeof insertWhiteLabelSchema>;
+
+// Inventory Management Schema
+
+// Inventory Providers (External systems like pharmacy management systems)
+export const inventoryProviders = pgTable("inventory_providers", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  apiEndpoint: text("api_endpoint").notNull(),
+  apiKey: text("api_key"),
+  apiSecret: text("api_secret"),
+  description: text("description"),
+  providerType: text("provider_type").notNull(), // e.g., "RxWare", "McKesson", "PioneerRx", "Cardinal"
+  isActive: boolean("is_active").default(true),
+  connectionStatus: text("connection_status").default("disconnected"), // connected, disconnected, error
+  lastSyncDate: timestamp("last_sync_date"),
+  syncFrequency: text("sync_frequency").default("daily"), // daily, hourly, real-time
+  syncSchedule: text("sync_schedule"), // cron expression or time
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInventoryProviderSchema = createInsertSchema(inventoryProviders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Inventory Items (Medications in external systems)
+export const inventoryItems = pgTable("inventory_items", {
+  id: serial("id").primaryKey(),
+  providerId: integer("provider_id").notNull().references(() => inventoryProviders.id),
+  externalId: text("external_id").notNull(), // ID in the external system
+  externalNdc: text("external_ndc"), // National Drug Code if available
+  name: text("name").notNull(),
+  description: text("description"),
+  inStock: boolean("in_stock").default(true),
+  quantity: integer("quantity").default(0),
+  unit: text("unit"), // e.g., "tablet", "bottle", "box"
+  price: doublePrecision("price"),
+  wholesalePrice: doublePrecision("wholesale_price"),
+  retailPrice: doublePrecision("retail_price"),
+  location: text("location"), // Store location or shelf
+  expirationDate: date("expiration_date"),
+  reorderPoint: integer("reorder_point"), // Threshold for reordering
+  reorderQuantity: integer("reorder_quantity"), // How much to order when below reorder point
+  supplierInfo: text("supplier_info"), // Information about supplier
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  rawData: json("raw_data"), // Store the raw data from the API for reference
+});
+
+export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit({
+  id: true,
+  lastUpdated: true,
+});
+
+// Inventory Mappings (Connect our medications to inventory items)
+export const inventoryMappings = pgTable("inventory_mappings", {
+  id: serial("id").primaryKey(),
+  medicationId: integer("medication_id").notNull().references(() => medications.id),
+  inventoryItemId: integer("inventory_item_id").notNull().references(() => inventoryItems.id),
+  isPrimary: boolean("is_primary").default(false), // Whether this is the primary inventory source
+  mappingType: text("mapping_type").default("automatic"), // automatic, manual
+  mappingStatus: text("mapping_status").default("active"), // active, inactive, error
+  mappingConfidence: doublePrecision("mapping_confidence"), // For automatic mappings, how confident the match is (0-1)
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInventoryMappingSchema = createInsertSchema(inventoryMappings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Define relations for inventory
+export const inventoryProvidersRelations = relations(inventoryProviders, ({ many }) => ({
+  inventoryItems: many(inventoryItems),
+}));
+
+export const inventoryItemsRelations = relations(inventoryItems, ({ one, many }) => ({
+  provider: one(inventoryProviders, {
+    fields: [inventoryItems.providerId],
+    references: [inventoryProviders.id],
+  }),
+  mappings: many(inventoryMappings),
+}));
+
+export const inventoryMappingsRelations = relations(inventoryMappings, ({ one }) => ({
+  medication: one(medications, {
+    fields: [inventoryMappings.medicationId],
+    references: [medications.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [inventoryMappings.inventoryItemId],
+    references: [inventoryItems.id],
+  }),
+}));
+
+// Add inventory mappings to medications relations
+export const medicationsInventoryRelations = relations(medications, ({ many }) => ({
+  inventoryMappings: many(inventoryMappings),
+}));
+
+// Export inventory types
+export type InventoryProvider = typeof inventoryProviders.$inferSelect;
+export type InsertInventoryProvider = z.infer<typeof insertInventoryProviderSchema>;
+export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+export type InventoryMapping = typeof inventoryMappings.$inferSelect;
+export type InsertInventoryMapping = z.infer<typeof insertInventoryMappingSchema>;
