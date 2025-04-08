@@ -119,7 +119,6 @@ export const prescriptions = pgTable("prescriptions", {
   fileUrl: text("file_url"),
   notes: text("notes"),
   // Verification fields
-  verificationStatus: text("verification_status").default("unverified"), // unverified, verified, failed
   verifiedBy: integer("verified_by").references(() => users.id),
   verificationDate: timestamp("verification_date"),
   verificationMethod: text("verification_method"), // manual, automated, phone
@@ -133,7 +132,6 @@ export const prescriptions = pgTable("prescriptions", {
 export const insertPrescriptionSchema = createInsertSchema(prescriptions).omit({
   id: true,
   uploadDate: true,
-  verificationStatus: true,
   verifiedBy: true,
   verificationDate: true,
   securityCode: true,
