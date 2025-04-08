@@ -3,9 +3,59 @@ import { UseMutationResult } from "@tanstack/react-query";
 import { apiRequest } from "../queryClient";
 import { WhiteLabel } from "@shared/schema";
 
+// Helper function to convert hex color to HSL format for Tailwind CSS
+const hexToHSL = (hex: string) => {
+  // Remove the # if present
+  hex = hex.replace(/^#/, '');
+  
+  // Parse the hex values
+  let r = parseInt(hex.substring(0, 2), 16) / 255;
+  let g = parseInt(hex.substring(2, 4), 16) / 255;
+  let b = parseInt(hex.substring(4, 6), 16) / 255;
+  
+  // Find the maximum and minimum values to calculate the lightness
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  
+  // Calculate the lightness
+  const l = (max + min) / 2;
+  
+  let h, s;
+  
+  if (max === min) {
+    // Achromatic case (gray)
+    h = 0;
+    s = 0;
+  } else {
+    // Calculate the saturation
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    
+    // Calculate the hue
+    switch (max) {
+      case r:
+        h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        break;
+      case g:
+        h = ((b - r) / d + 2) / 6;
+        break;
+      case b:
+        h = ((r - g) / d + 4) / 6;
+        break;
+      default:
+        h = 0;
+    }
+  }
+  
+  // Return HSL values in the correct format
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+};
+
 export interface WhiteLabelConfig {
   name: string;
   primaryColor: string;
+  secondaryColor?: string;
+  accentColor?: string;
   logo?: string;
   tagline?: string;
   legalName?: string;
@@ -13,6 +63,8 @@ export interface WhiteLabelConfig {
   contactPhone?: string;
   address?: string;
   allowGuestCart?: boolean;
+  fontFamily?: string;
+  borderRadius?: string;
   socialLinks?: {
     facebook?: string;
     twitter?: string;
@@ -58,11 +110,53 @@ export const WhiteLabelProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         setConfig(data);
         
-        // Apply primary color to CSS variables
+        // Apply white label styles to CSS variables
         if (data.primaryColor) {
           document.documentElement.style.setProperty(
             "--primary",
-            data.primaryColor
+            hexToHSL(data.primaryColor)
+          );
+        }
+        
+        // Set secondary color if available
+        if (data.secondaryColor) {
+          document.documentElement.style.setProperty(
+            "--secondary",
+            hexToHSL(data.secondaryColor)
+          );
+        }
+        
+        // Set accent color if available
+        if (data.accentColor) {
+          document.documentElement.style.setProperty(
+            "--accent",
+            hexToHSL(data.accentColor)
+          );
+        }
+        
+        // Set border radius if available
+        if (data.borderRadius) {
+          document.documentElement.style.setProperty(
+            "--radius",
+            data.borderRadius
+          );
+        } else if (data.theme?.borderRadius) {
+          document.documentElement.style.setProperty(
+            "--radius",
+            data.theme.borderRadius
+          );
+        }
+        
+        // Set font family if available
+        if (data.fontFamily) {
+          document.documentElement.style.setProperty(
+            "--font-family",
+            data.fontFamily
+          );
+        } else if (data.theme?.fontFamily) {
+          document.documentElement.style.setProperty(
+            "--font-family",
+            data.theme.fontFamily
           );
         }
 
@@ -84,11 +178,53 @@ export const WhiteLabelProvider = ({ children }: { children: ReactNode }) => {
       const updatedConfig = await response.json();
       setConfig(updatedConfig);
       
-      // Apply primary color to CSS variables
+      // Apply white label styles to CSS variables
       if (updatedConfig.primaryColor) {
         document.documentElement.style.setProperty(
           "--primary",
-          updatedConfig.primaryColor
+          hexToHSL(updatedConfig.primaryColor)
+        );
+      }
+      
+      // Set secondary color if available
+      if (updatedConfig.secondaryColor) {
+        document.documentElement.style.setProperty(
+          "--secondary",
+          hexToHSL(updatedConfig.secondaryColor)
+        );
+      }
+      
+      // Set accent color if available
+      if (updatedConfig.accentColor) {
+        document.documentElement.style.setProperty(
+          "--accent",
+          hexToHSL(updatedConfig.accentColor)
+        );
+      }
+      
+      // Set border radius if available
+      if (updatedConfig.borderRadius) {
+        document.documentElement.style.setProperty(
+          "--radius",
+          updatedConfig.borderRadius
+        );
+      } else if (updatedConfig.theme?.borderRadius) {
+        document.documentElement.style.setProperty(
+          "--radius",
+          updatedConfig.theme.borderRadius
+        );
+      }
+      
+      // Set font family if available
+      if (updatedConfig.fontFamily) {
+        document.documentElement.style.setProperty(
+          "--font-family",
+          updatedConfig.fontFamily
+        );
+      } else if (updatedConfig.theme?.fontFamily) {
+        document.documentElement.style.setProperty(
+          "--font-family",
+          updatedConfig.theme.fontFamily
         );
       }
     } catch (err) {

@@ -396,6 +396,7 @@ export const whiteLabels = pgTable("white_labels", {
   secondaryColor: text("secondary_color").default("#10b981"), // Default green
   accentColor: text("accent_color").default("#f59e0b"), // Default amber
   fontFamily: text("font_family").default("Inter"),
+  borderRadius: text("border_radius").default("0.5rem"), // Default rounded corners
   customCss: text("custom_css"),
   favicon: text("favicon"),
   companyName: text("company_name").notNull(),

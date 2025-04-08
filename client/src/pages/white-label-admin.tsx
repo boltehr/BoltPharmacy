@@ -77,6 +77,7 @@ const whiteLabelFormSchema = z.object({
   fontFamily: z.string().min(1, {
     message: "Please select a font family.",
   }),
+  borderRadius: z.string().optional().default("0.5rem"),
   customCss: z.string().optional().nullable(),
   favicon: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
@@ -95,6 +96,7 @@ const defaultValues: Partial<WhiteLabelFormValues> = {
   secondaryColor: "#10b981", // Default green
   accentColor: "#f59e0b", // Default amber
   fontFamily: "Inter",
+  borderRadius: "0.5rem", // Default rounded corners
   allowGuestCart: true,
   isActive: false,
 };
@@ -263,8 +265,10 @@ export default function WhiteLabelAdmin() {
   // Update form when selectedWhiteLabel changes
   useEffect(() => {
     if (selectedWhiteLabel) {
-      form.reset({
-        ...selectedWhiteLabel,
+      const whiteLabel = {
+        name: selectedWhiteLabel.name,
+        companyName: selectedWhiteLabel.companyName,
+        contactEmail: selectedWhiteLabel.contactEmail,
         // Convert any nulls to empty strings for the form
         logo: selectedWhiteLabel.logo ?? '',
         customCss: selectedWhiteLabel.customCss ?? '',
@@ -279,9 +283,11 @@ export default function WhiteLabelAdmin() {
         secondaryColor: selectedWhiteLabel.secondaryColor ?? '',
         accentColor: selectedWhiteLabel.accentColor ?? '',
         fontFamily: selectedWhiteLabel.fontFamily ?? '',
+        borderRadius: selectedWhiteLabel.borderRadius ?? '0.5rem',
         allowGuestCart: selectedWhiteLabel.allowGuestCart ?? true,
         isActive: selectedWhiteLabel.isActive ?? false,
-      });
+      };
+      form.reset(whiteLabel);
     } else {
       form.reset(defaultValues);
     }
@@ -308,6 +314,7 @@ export default function WhiteLabelAdmin() {
           secondaryColor: data.secondaryColor || null,
           accentColor: data.accentColor || null,
           fontFamily: data.fontFamily || null,
+          borderRadius: data.borderRadius || null,
         },
       });
     } else {
@@ -327,6 +334,7 @@ export default function WhiteLabelAdmin() {
         secondaryColor: data.secondaryColor || null,
         accentColor: data.accentColor || null,
         fontFamily: data.fontFamily || null,
+        borderRadius: data.borderRadius || null,
       });
     }
 
@@ -342,8 +350,11 @@ export default function WhiteLabelAdmin() {
   function handleEdit(whiteLabel: WhiteLabel) {
     setSelectedWhiteLabel(whiteLabel);
     setIsEditMode(true);
-    form.reset({
-      ...whiteLabel,
+    
+    const formData = {
+      name: whiteLabel.name,
+      companyName: whiteLabel.companyName,
+      contactEmail: whiteLabel.contactEmail,
       // Convert any nulls to empty strings for the form
       logo: whiteLabel.logo ?? '',
       customCss: whiteLabel.customCss ?? '',
@@ -358,9 +369,12 @@ export default function WhiteLabelAdmin() {
       secondaryColor: whiteLabel.secondaryColor ?? '',
       accentColor: whiteLabel.accentColor ?? '',
       fontFamily: whiteLabel.fontFamily ?? '',
+      borderRadius: whiteLabel.borderRadius ?? '0.5rem',
       allowGuestCart: whiteLabel.allowGuestCart ?? true,
       isActive: whiteLabel.isActive ?? false,
-    });
+    };
+    
+    form.reset(formData);
   }
 
   // Function to handle activate/deactivate button click
@@ -660,17 +674,28 @@ export default function WhiteLabelAdmin() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Primary Color</FormLabel>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 items-center">
                             <div 
-                              className="w-8 h-8 rounded border"
+                              className="w-10 h-10 rounded-md border shadow-sm cursor-pointer flex items-center justify-center"
                               style={{ backgroundColor: field.value }}
-                            />
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'color';
+                                input.value = field.value;
+                                input.addEventListener('input', (e) => {
+                                  field.onChange((e.target as HTMLInputElement).value);
+                                });
+                                input.click();
+                              }}
+                            >
+                              <span className="text-xs font-mono text-white text-opacity-80 drop-shadow">Primary</span>
+                            </div>
                             <FormControl>
                               <Input placeholder="#3b82f6" {...field} value={field.value || ''} />
                             </FormControl>
                           </div>
                           <FormDescription>
-                            The main color used throughout the site (hex code).
+                            The main color used for buttons, links, and highlights throughout the site (hex code).
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -683,17 +708,28 @@ export default function WhiteLabelAdmin() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Secondary Color</FormLabel>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 items-center">
                             <div 
-                              className="w-8 h-8 rounded border"
+                              className="w-10 h-10 rounded-md border shadow-sm cursor-pointer flex items-center justify-center"
                               style={{ backgroundColor: field.value }}
-                            />
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'color';
+                                input.value = field.value;
+                                input.addEventListener('input', (e) => {
+                                  field.onChange((e.target as HTMLInputElement).value);
+                                });
+                                input.click();
+                              }}
+                            >
+                              <span className="text-xs font-mono text-white text-opacity-80 drop-shadow">Secondary</span>
+                            </div>
                             <FormControl>
                               <Input placeholder="#10b981" {...field} value={field.value || ''} />
                             </FormControl>
                           </div>
                           <FormDescription>
-                            Secondary color used for elements like buttons (hex code).
+                            Secondary color used for background sections, cards, and supporting UI elements (hex code).
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -706,17 +742,28 @@ export default function WhiteLabelAdmin() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Accent Color</FormLabel>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 items-center">
                             <div 
-                              className="w-8 h-8 rounded border"
+                              className="w-10 h-10 rounded-md border shadow-sm cursor-pointer flex items-center justify-center"
                               style={{ backgroundColor: field.value }}
-                            />
+                              onClick={() => {
+                                const input = document.createElement('input');
+                                input.type = 'color';
+                                input.value = field.value;
+                                input.addEventListener('input', (e) => {
+                                  field.onChange((e.target as HTMLInputElement).value);
+                                });
+                                input.click();
+                              }}
+                            >
+                              <span className="text-xs font-mono text-white text-opacity-80 drop-shadow">Accent</span>
+                            </div>
                             <FormControl>
                               <Input placeholder="#f59e0b" {...field} value={field.value || ''} />
                             </FormControl>
                           </div>
                           <FormDescription>
-                            Accent color used for highlights and calls to action (hex code).
+                            Accent color used for special highlights, call-to-action elements, and important notifications (hex code).
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -730,14 +777,106 @@ export default function WhiteLabelAdmin() {
                         <FormItem>
                           <FormLabel>Font Family</FormLabel>
                           <FormControl>
-                            <Input placeholder="Inter" {...field} value={field.value || ''} />
+                            <select
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              value={field.value}
+                              onChange={field.onChange}
+                            >
+                              <option value="Inter">Inter (Default)</option>
+                              <option value="Roboto">Roboto</option>
+                              <option value="Open Sans">Open Sans</option>
+                              <option value="Lato">Lato</option>
+                              <option value="Poppins">Poppins</option>
+                              <option value="Montserrat">Montserrat</option>
+                              <option value="Arial">Arial</option>
+                              <option value="Helvetica">Helvetica</option>
+                              <option value="Georgia">Georgia</option>
+                              <option value="Verdana">Verdana</option>
+                              <option value="Times New Roman">Times New Roman</option>
+                            </select>
                           </FormControl>
                           <FormDescription>
-                            The primary font for the website.
+                            The primary font for the website - select from popular web fonts.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="borderRadius"
+                      render={({ field }) => {
+                        // Convert string value to number for the slider
+                        const value = field.value ? parseInt(field.value.replace('rem', '')) : 0.5;
+                        
+                        return (
+                          <FormItem>
+                            <FormLabel>Border Radius</FormLabel>
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <FormDescription className="m-0">
+                                  {value === 0 ? "Square (No Rounding)" : 
+                                   value <= 0.25 ? "Subtle Rounding" :
+                                   value <= 0.5 ? "Moderate Rounding" :
+                                   value <= 1 ? "Rounded" :
+                                   "Very Rounded"}
+                                </FormDescription>
+                                <span className="text-sm font-medium">{value}rem</span>
+                              </div>
+                              <div className="flex gap-2 items-center">
+                                <input 
+                                  type="range" 
+                                  min="0"
+                                  max="2"
+                                  step="0.125"
+                                  value={value}
+                                  onChange={(e) => field.onChange(`${e.target.value}rem`)}
+                                  className="w-full"
+                                />
+                              </div>
+                              <div className="flex gap-4 justify-between">
+                                <div 
+                                  className="w-16 h-16 border shadow-sm flex items-center justify-center"
+                                  style={{ borderRadius: "0rem" }}
+                                  onClick={() => field.onChange("0rem")}
+                                >
+                                  <span className="text-xs">Square</span>
+                                </div>
+                                <div 
+                                  className="w-16 h-16 border shadow-sm flex items-center justify-center"
+                                  style={{ borderRadius: "0.25rem" }}
+                                  onClick={() => field.onChange("0.25rem")}
+                                >
+                                  <span className="text-xs">Subtle</span>
+                                </div>
+                                <div 
+                                  className="w-16 h-16 border shadow-sm flex items-center justify-center"
+                                  style={{ borderRadius: "0.5rem" }}
+                                  onClick={() => field.onChange("0.5rem")}
+                                >
+                                  <span className="text-xs">Default</span>
+                                </div>
+                                <div 
+                                  className="w-16 h-16 border shadow-sm flex items-center justify-center"
+                                  style={{ borderRadius: "1rem" }}
+                                  onClick={() => field.onChange("1rem")}
+                                >
+                                  <span className="text-xs">Rounded</span>
+                                </div>
+                                <div 
+                                  className="w-16 h-16 border shadow-sm flex items-center justify-center"
+                                  style={{ borderRadius: "1.5rem" }}
+                                  onClick={() => field.onChange("1.5rem")}
+                                >
+                                  <span className="text-xs">Very Round</span>
+                                </div>
+                              </div>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )
+                      }}
                     />
 
                     {/* Feature Settings */}
