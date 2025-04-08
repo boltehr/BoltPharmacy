@@ -115,6 +115,9 @@ export default function WhiteLabelAdmin() {
   // Current active white label
   const activeWhiteLabel = whiteLabels.find(wl => wl.isActive) || null;
   
+  // Current default white label
+  const defaultWhiteLabel = whiteLabels.find(wl => wl.isDefault) || null;
+  
   // Create a new white label configuration
   const createWhiteLabelMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -197,6 +200,50 @@ export default function WhiteLabelAdmin() {
     onError: (error) => {
       toast({
         title: 'Failed to deactivate white label',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Set a white label configuration as default
+  const setDefaultWhiteLabelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('POST', `/api/white-label/${id}/set-default`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      toast({
+        title: 'Default white label set',
+        description: 'The white label configuration has been set as the default successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to set default white label',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // Unset a white label configuration as default
+  const unsetDefaultWhiteLabelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('POST', `/api/white-label/${id}/unset-default`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      toast({
+        title: 'Default white label unset',
+        description: 'The white label configuration is no longer the default.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to unset default white label',
         description: error.message,
         variant: 'destructive',
       });
@@ -324,6 +371,15 @@ export default function WhiteLabelAdmin() {
       activateWhiteLabelMutation.mutate(id);
     }
   }
+  
+  // Function to handle set/unset default button click
+  function handleToggleDefault(id: number, currentState: boolean) {
+    if (currentState) {
+      unsetDefaultWhiteLabelMutation.mutate(id);
+    } else {
+      setDefaultWhiteLabelMutation.mutate(id);
+    }
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -382,6 +438,7 @@ export default function WhiteLabelAdmin() {
                       <TableHead>Name</TableHead>
                       <TableHead>Company</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Default</TableHead>
                       <TableHead>Last Updated</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -405,6 +462,19 @@ export default function WhiteLabelAdmin() {
                           )}
                         </TableCell>
                         <TableCell>
+                          {whiteLabel.isDefault ? (
+                            <div className="flex items-center text-blue-600">
+                              <CheckCircle className="mr-1 h-4 w-4" />
+                              Default
+                            </div>
+                          ) : (
+                            <div className="flex items-center text-muted-foreground">
+                              <XCircle className="mr-1 h-4 w-4" />
+                              Not Default
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           {whiteLabel.updatedAt 
                             ? new Date(whiteLabel.updatedAt).toLocaleDateString() 
                             : 'N/A'}
@@ -415,6 +485,7 @@ export default function WhiteLabelAdmin() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleEdit(whiteLabel)}
+                              title="Edit"
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -422,8 +493,21 @@ export default function WhiteLabelAdmin() {
                               variant={whiteLabel.isActive ? "destructive" : "outline"}
                               size="sm"
                               onClick={() => handleToggleActive(whiteLabel.id, Boolean(whiteLabel.isActive))}
+                              title={whiteLabel.isActive ? "Deactivate" : "Activate"}
                             >
                               {whiteLabel.isActive ? (
+                                <XCircle className="h-4 w-4" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant={whiteLabel.isDefault ? "destructive" : "outline"}
+                              size="sm"
+                              onClick={() => handleToggleDefault(whiteLabel.id, Boolean(whiteLabel.isDefault))}
+                              title={whiteLabel.isDefault ? "Unset as Default" : "Set as Default"}
+                            >
+                              {whiteLabel.isDefault ? (
                                 <XCircle className="h-4 w-4" />
                               ) : (
                                 <CheckCircle className="h-4 w-4" />

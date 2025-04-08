@@ -407,9 +407,13 @@ export const whiteLabels = pgTable("white_labels", {
   termsUrl: text("terms_url"),
   privacyUrl: text("privacy_url"),
   allowGuestCart: boolean("allow_guest_cart").default(true),
+  themePreset: text("theme_preset").default("custom"), // custom, modern, classic, minimalist, vibrant
+  callCenterHours: text("call_center_hours"),
+  faxNumber: text("fax_number"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   isActive: boolean("is_active").default(false),
+  isDefault: boolean("is_default").default(false), // Added to identify the default configuration
 });
 
 export const insertWhiteLabelSchema = createInsertSchema(whiteLabels).omit({

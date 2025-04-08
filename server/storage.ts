@@ -134,11 +134,14 @@ export interface IStorage {
   getWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
   getWhiteLabelByName(name: string): Promise<WhiteLabel | undefined>;
   getActiveWhiteLabel(): Promise<WhiteLabel | undefined>;
+  getDefaultWhiteLabel(): Promise<WhiteLabel | undefined>;
   getWhiteLabels(): Promise<WhiteLabel[]>;
   createWhiteLabel(config: InsertWhiteLabel): Promise<WhiteLabel>;
   updateWhiteLabel(id: number, config: Partial<InsertWhiteLabel>): Promise<WhiteLabel | undefined>;
   activateWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
   deactivateWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
+  setDefaultWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
+  unsetDefaultWhiteLabel(id: number): Promise<WhiteLabel | undefined>;
   
   // Inventory Provider methods
   getInventoryProvider(id: number): Promise<InventoryProvider | undefined>;
@@ -1163,6 +1166,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.whiteLabels.values()).find(config => config.isActive);
   }
   
+  async getDefaultWhiteLabel(): Promise<WhiteLabel | undefined> {
+    return Array.from(this.whiteLabels.values()).find(config => config.isDefault);
+  }
+  
   async getWhiteLabels(): Promise<WhiteLabel[]> {
     return Array.from(this.whiteLabels.values());
   }
@@ -1239,6 +1246,42 @@ export class MemStorage implements IStorage {
     const updatedWhiteLabel: WhiteLabel = { 
       ...whiteLabel, 
       isActive: false,
+      updatedAt: new Date()
+    };
+    
+    this.whiteLabels.set(id, updatedWhiteLabel);
+    return updatedWhiteLabel;
+  }
+  
+  async setDefaultWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    // First clear any existing default white label
+    const currentDefault = await this.getDefaultWhiteLabel();
+    if (currentDefault) {
+      currentDefault.isDefault = false;
+      this.whiteLabels.set(currentDefault.id, currentDefault);
+    }
+    
+    // Now set the requested white label as default
+    const whiteLabel = await this.getWhiteLabel(id);
+    if (!whiteLabel) return undefined;
+    
+    const updatedWhiteLabel: WhiteLabel = { 
+      ...whiteLabel, 
+      isDefault: true,
+      updatedAt: new Date()
+    };
+    
+    this.whiteLabels.set(id, updatedWhiteLabel);
+    return updatedWhiteLabel;
+  }
+  
+  async unsetDefaultWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    const whiteLabel = await this.getWhiteLabel(id);
+    if (!whiteLabel) return undefined;
+    
+    const updatedWhiteLabel: WhiteLabel = { 
+      ...whiteLabel, 
+      isDefault: false,
       updatedAt: new Date()
     };
     
@@ -1650,6 +1693,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updatedUser;
+  }
+  
+  // Password reset methods
+  async storePasswordResetToken(userId: number, token: string, expiry: Date): Promise<boolean> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        resetToken: token,
+        resetTokenExpiry: expiry,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return !!updatedUser;
+  }
+  
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        sql`${users.resetToken} = ${token} AND ${users.resetTokenExpiry} > NOW()`
+      );
+    return user;
+  }
+  
+  async resetPassword(userId: number, newPassword: string): Promise<boolean> {
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        password: newPassword,
+        resetToken: null,
+        resetTokenExpiry: null,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return !!updatedUser;
   }
   
   // Allergy methods
@@ -2204,6 +2287,11 @@ export class DatabaseStorage implements IStorage {
     return config;
   }
   
+  async getDefaultWhiteLabel(): Promise<WhiteLabel | undefined> {
+    const [config] = await db.select().from(whiteLabels).where(eq(whiteLabels.isDefault, true));
+    return config;
+  }
+  
   async getWhiteLabels(): Promise<WhiteLabel[]> {
     return await db.select().from(whiteLabels).orderBy(whiteLabels.name);
   }
@@ -2256,6 +2344,39 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return deactivatedConfig;
+  }
+  
+  async setDefaultWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    // First clear any existing default white label
+    await db
+      .update(whiteLabels)
+      .set({ isDefault: false })
+      .where(eq(whiteLabels.isDefault, true));
+    
+    // Now set the requested white label as default
+    const [defaultConfig] = await db
+      .update(whiteLabels)
+      .set({ 
+        isDefault: true,
+        updatedAt: new Date()
+      })
+      .where(eq(whiteLabels.id, id))
+      .returning();
+    
+    return defaultConfig;
+  }
+  
+  async unsetDefaultWhiteLabel(id: number): Promise<WhiteLabel | undefined> {
+    const [unsetConfig] = await db
+      .update(whiteLabels)
+      .set({ 
+        isDefault: false,
+        updatedAt: new Date()
+      })
+      .where(eq(whiteLabels.id, id))
+      .returning();
+    
+    return unsetConfig;
   }
 
   // Inventory Provider methods

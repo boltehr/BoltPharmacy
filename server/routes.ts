@@ -1263,6 +1263,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Route to get the configuration for the frontend
+  router.get("/white-label/config", async (req, res) => {
+    try {
+      // First try to get the active white label
+      let whiteLabel = await storage.getActiveWhiteLabel();
+      
+      // If no active white label, try the default one
+      if (!whiteLabel) {
+        whiteLabel = await storage.getDefaultWhiteLabel();
+      }
+      
+      // If still no white label, return a default config
+      if (!whiteLabel) {
+        return res.json({
+          name: "BoltEHR Pharmacy",
+          primaryColor: "#0070f3",
+          secondaryColor: "#f5f5f5",
+          accentColor: "#ff4081",
+          fontFamily: "Inter, sans-serif",
+          tagline: "Your trusted online pharmacy for affordable medications",
+          allowGuestCart: true,
+        });
+      }
+      
+      res.json(whiteLabel);
+    } catch (err) {
+      console.error("Error fetching white label config:", err);
+      res.status(500).json({ message: "Failed to fetch white label config" });
+    }
+  });
+  
+  router.get("/white-labels/default", async (req, res) => {
+    try {
+      const defaultWhiteLabel = await storage.getDefaultWhiteLabel();
+      if (!defaultWhiteLabel) {
+        return res.status(404).json({ message: "No default white label configuration found" });
+      }
+      res.json(defaultWhiteLabel);
+    } catch (err) {
+      console.error("Error fetching default white label:", err);
+      res.status(500).json({ message: "Failed to fetch default white label" });
+    }
+  });
+  
   router.get("/white-labels/:id", isAuthenticated, async (req, res) => {
     try {
       if (!req.user) {
@@ -1362,6 +1406,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error deactivating white label:", err);
       res.status(500).json({ message: "Failed to deactivate white label" });
+    }
+  });
+
+  // White Label Default Configuration routes
+  router.post("/white-label/:id/set-default", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabel = await storage.getWhiteLabel(Number(req.params.id));
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "White label configuration not found" });
+      }
+      
+      const defaultWhiteLabel = await storage.setDefaultWhiteLabel(Number(req.params.id));
+      res.json(defaultWhiteLabel);
+    } catch (err) {
+      console.error("Error setting default white label:", err);
+      res.status(500).json({ message: "Failed to set default white label" });
+    }
+  });
+
+  router.post("/white-labels/:id/unset-default", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const whiteLabel = await storage.getWhiteLabel(Number(req.params.id));
+      if (!whiteLabel) {
+        return res.status(404).json({ message: "White label configuration not found" });
+      }
+      
+      const whitelabel = await storage.unsetDefaultWhiteLabel(Number(req.params.id));
+      res.json(whitelabel);
+    } catch (err) {
+      console.error("Error unsetting default white label:", err);
+      res.status(500).json({ message: "Failed to unset default white label" });
     }
   });
   
