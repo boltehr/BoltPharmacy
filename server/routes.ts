@@ -173,6 +173,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(prescription);
   });
   
+  // Get all orders for a specific prescription
+  router.get("/prescriptions/:id/orders", async (req, res) => {
+    try {
+      const prescriptionId = Number(req.params.id);
+      
+      // Verify the prescription exists
+      const prescription = await storage.getPrescription(prescriptionId);
+      if (!prescription) {
+        return res.status(404).json({ message: "Prescription not found" });
+      }
+      
+      // Get all orders associated with this prescription
+      const orders = await storage.getOrdersByPrescription(prescriptionId);
+      
+      // Return orders sorted by date (newest first)
+      const sortedOrders = orders.sort((a, b) => {
+        const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+        const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+        return dateB - dateA;
+      });
+      
+      res.json(sortedOrders);
+    } catch (error) {
+      console.error("Error fetching prescription orders:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   router.post("/prescriptions", validateRequest(insertPrescriptionSchema), async (req, res) => {
     try {
       const prescription = await storage.createPrescription(req.body);
@@ -203,7 +231,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const orderItems = await storage.getOrderItems(Number(req.params.id));
-    res.json({ ...order, items: orderItems });
+    
+    // Get the associated prescription
+    const prescription = order.prescriptionId ? 
+      await storage.getPrescription(order.prescriptionId) : null;
+    
+    // Get other orders related to the same prescription
+    const relatedOrders = prescription ? 
+      await storage.getOrdersByPrescription(prescription.id) : [];
+    
+    // Filter out the current order from related orders
+    const otherOrders = relatedOrders.filter((o: { id: number }) => o.id !== order.id);
+    
+    res.json({ 
+      ...order, 
+      items: orderItems,
+      prescription,
+      relatedOrders: otherOrders
+    });
   });
   
   router.post("/orders", validateRequest(insertOrderSchema), async (req, res) => {

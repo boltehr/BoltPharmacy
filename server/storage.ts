@@ -63,6 +63,7 @@ export interface IStorage {
   // Order methods
   getOrder(id: number): Promise<Order | undefined>;
   getOrdersByUser(userId: number): Promise<Order[]>;
+  getOrdersByPrescription(prescriptionId: number): Promise<Order[]>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | undefined>;
   
@@ -471,6 +472,16 @@ export class MemStorage implements IStorage {
       });
   }
   
+  async getOrdersByPrescription(prescriptionId: number): Promise<Order[]> {
+    return Array.from(this.orders.values())
+      .filter(order => order.prescriptionId === prescriptionId)
+      .sort((a, b) => {
+        const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+        const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+        return dateB - dateA; // Sort by newest first
+      });
+  }
+  
   async createOrder(order: InsertOrder): Promise<Order> {
     const id = this.orderIdCounter++;
     const now = new Date();
@@ -592,7 +603,6 @@ export class MemStorage implements IStorage {
       ...insurance, 
       id,
       userId: insurance.userId,
-      providerId: insurance.providerId ?? null,
       provider: insurance.provider,
       memberId: insurance.memberId,
       groupNumber: insurance.groupNumber ?? null,
@@ -1030,6 +1040,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(orders)
       .where(eq(orders.userId, userId))
+      .orderBy(desc(orders.orderDate));
+  }
+  
+  async getOrdersByPrescription(prescriptionId: number): Promise<Order[]> {
+    return await db
+      .select()
+      .from(orders)
+      .where(eq(orders.prescriptionId, prescriptionId))
       .orderBy(desc(orders.orderDate));
   }
 

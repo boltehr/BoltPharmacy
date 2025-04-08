@@ -3,7 +3,7 @@ import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/context/auth";
 import { Helmet } from "react-helmet-async";
-import { CheckCircle, Truck, Package, Clock, Info, ExternalLink } from "lucide-react";
+import { CheckCircle, Truck, Package, Clock, Info, ExternalLink, FileText, Calendar, AlertCircle } from "lucide-react";
 import { 
   Card, 
   CardContent,
@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const OrderTracking = () => {
   const params = useParams();
@@ -344,16 +346,16 @@ const OrderTracking = () => {
             </div>
           )}
           
-          {/* Additional information */}
+          {/* Prescription information */}
           {order.prescriptionId && (
             <div className="mt-6 border-t border-neutral-200 pt-6">
               <div className="flex items-start">
                 <Info className="h-5 w-5 text-blue-500 mr-3 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-neutral-900">Prescription Information</p>
-                  <p className="text-sm text-neutral-600 mt-1">
-                    This order contains medications that require a prescription. Your prescription has been verified.
-                  </p>
+                  <PrescriptionDetails 
+                    prescriptionId={order.prescriptionId} 
+                  />
                 </div>
               </div>
             </div>
@@ -388,6 +390,169 @@ const OrderTracking = () => {
           </div>
         </CardFooter>
       </Card>
+    </div>
+  );
+};
+
+// PrescriptionDetails component
+interface PrescriptionDetailsProps {
+  prescriptionId: number;
+}
+
+const PrescriptionDetails = ({ prescriptionId }: PrescriptionDetailsProps) => {
+  // Fetch prescription details
+  const { data: prescription, isLoading } = useQuery({
+    queryKey: [`/api/prescriptions/${prescriptionId}`],
+    queryFn: async () => {
+      const res = await fetch(`/api/prescriptions/${prescriptionId}`);
+      if (!res.ok) throw new Error("Failed to fetch prescription");
+      return res.json();
+    },
+    enabled: !!prescriptionId,
+  });
+
+  // Fetch related orders for this prescription
+  const { data: relatedOrders } = useQuery({
+    queryKey: [`/api/prescriptions/${prescriptionId}/orders`],
+    queryFn: async () => {
+      const res = await fetch(`/api/prescriptions/${prescriptionId}/orders`);
+      if (!res.ok) throw new Error("Failed to fetch related orders");
+      return res.json();
+    },
+    enabled: !!prescriptionId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="mt-2">
+        <div className="flex items-center space-x-2">
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm text-neutral-600">Loading prescription details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!prescription) {
+    return (
+      <div className="mt-2">
+        <p className="text-sm text-neutral-600">
+          Prescription information could not be loaded.
+        </p>
+      </div>
+    );
+  }
+
+  // Format date for the prescription
+  const formatPrescriptionDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return format(date, "MMM d, yyyy");
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <div className="mb-3">
+        <div className="flex items-center space-x-2 mt-1">
+          <Badge variant={prescription.status === "approved" ? "default" : prescription.status === "pending" ? "outline" : "secondary"}>
+            {prescription.status === "approved" ? "Verified" : prescription.status === "pending" ? "Awaiting Verification" : prescription.status}
+          </Badge>
+          
+          <p className="text-sm text-neutral-500">
+            Uploaded on {formatPrescriptionDate(prescription.uploadDate)}
+          </p>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+          <div className="space-y-1">
+            <div className="flex items-center text-sm">
+              <FileText className="h-4 w-4 text-neutral-500 mr-2" />
+              <span className="text-neutral-600">
+                {prescription.fileUrl 
+                  ? <a href={prescription.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View prescription</a>
+                  : "No prescription file uploaded"}
+              </span>
+            </div>
+            
+            {prescription.doctorName && (
+              <div className="flex items-center text-sm">
+                <svg className="h-4 w-4 text-neutral-500 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span className="text-neutral-600">Dr. {prescription.doctorName}</span>
+              </div>
+            )}
+            
+            {prescription.doctorPhone && (
+              <div className="flex items-center text-sm">
+                <svg className="h-4 w-4 text-neutral-500 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                <span className="text-neutral-600">{prescription.doctorPhone}</span>
+              </div>
+            )}
+            
+            {prescription.notes && (
+              <div className="mt-2">
+                <p className="text-sm text-neutral-600">
+                  <span className="font-medium">Notes:</span> {prescription.notes}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Related orders section */}
+      {relatedOrders && relatedOrders.length > 0 && (
+        <div className="mt-4 border-t border-neutral-100 pt-4">
+          <div className="flex items-center mb-2">
+            <Calendar className="h-4 w-4 text-neutral-500 mr-2" />
+            <p className="text-sm font-medium text-neutral-900">Related Orders</p>
+          </div>
+          
+          <div className="space-y-2">
+            {relatedOrders.map((relatedOrder: any) => (
+              <div key={relatedOrder.id} className="flex items-center justify-between bg-neutral-50 p-2 rounded">
+                <div className="flex items-center">
+                  <div className={`h-3 w-3 rounded-full mr-2 ${
+                    relatedOrder.status === "delivered" ? "bg-green-500" : 
+                    relatedOrder.status === "shipped" ? "bg-blue-500" : 
+                    relatedOrder.status === "processing" ? "bg-amber-500" : 
+                    relatedOrder.status === "cancelled" ? "bg-red-500" : 
+                    "bg-neutral-300"
+                  }`} />
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <p className="text-sm text-neutral-600">
+                          Order #{relatedOrder.id} 
+                          <span className="hidden sm:inline"> • {formatPrescriptionDate(relatedOrder.orderDate)}</span>
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Status: <span className="capitalize">{relatedOrder.status}</span></p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                
+                <Link href={`/orders/${relatedOrder.id}`}>
+                  <Button variant="ghost" size="sm" className="h-7 px-2">
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 18l6-6-6-6"></path>
+                    </svg>
+                  </Button>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
