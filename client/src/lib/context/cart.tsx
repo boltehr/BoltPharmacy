@@ -187,13 +187,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
     if (user) {
-      setCartItems([]);
-      // Clear on server too
-      apiRequest('DELETE', '/api/cart').catch(error => {
+      try {
+        // Clear on server first
+        await apiRequest('DELETE', '/api/cart');
+        setCartItems([]);
+      } catch (error) {
         console.error('Error clearing cart on server:', error);
-      });
+        toast({
+          title: "Error clearing cart",
+          description: "There was a problem clearing your cart. Please try again.",
+          variant: "destructive",
+        });
+      }
     } else {
       setGuestCartItems([]);
       localStorage.removeItem(GUEST_CART_STORAGE_KEY);

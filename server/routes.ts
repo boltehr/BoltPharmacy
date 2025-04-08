@@ -1034,6 +1034,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Cart routes
+  // Authentication-based cart routes
+  router.get("/cart", isAuthenticated, async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const cart = await storage.getCart(req.user.id);
+    res.json(cart || { userId: req.user.id, items: [] });
+  });
+  
+  router.post("/cart", isAuthenticated, async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    try {
+      const items = req.body.items as CartItem[];
+      const cart = await storage.updateCart(req.user.id, items);
+      res.json(cart);
+    } catch (err) {
+      res.status(500).json({ message: "Failed to update cart" });
+    }
+  });
+  
+  router.delete("/cart", isAuthenticated, async (req, res) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    try {
+      await storage.clearCart(req.user.id);
+      res.status(200).json({ message: "Cart cleared successfully" });
+    } catch (err) {
+      res.status(500).json({ message: "Failed to clear cart" });
+    }
+  });
+  
+  // Legacy cart routes for backward compatibility
   router.get("/cart/:userId", async (req, res) => {
     const cart = await storage.getCart(Number(req.params.userId));
     res.json(cart || { userId: Number(req.params.userId), items: [] });

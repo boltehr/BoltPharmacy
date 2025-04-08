@@ -40,12 +40,12 @@ const ShoppingCart = () => {
               <Button
                 variant="outline"
                 className="mt-4"
-                onClick={toggleCart}
-                asChild
+                onClick={() => {
+                  toggleCart();
+                  window.location.href = "/medications";
+                }}
               >
-                <Link href="/medications">
-                  <a>{t("cart.continueShopping")}</a>
-                </Link>
+                {t("cart.continueShopping")}
               </Button>
             </div>
           ) : (
@@ -114,22 +114,22 @@ const ShoppingCart = () => {
             <Separator />
             <Button
               className="w-full mt-4"
-              asChild
-              onClick={toggleCart}
+              onClick={() => {
+                toggleCart();
+                window.location.href = "/checkout";
+              }}
             >
-              <Link href="/checkout">
-                <a>{t("cart.proceedToCheckout")}</a>
-              </Link>
+              {t("cart.proceedToCheckout")}
             </Button>
             <Button
               variant="outline"
               className="w-full mt-2"
-              onClick={toggleCart}
-              asChild
+              onClick={() => {
+                toggleCart();
+                window.location.href = "/medications";
+              }}
             >
-              <Link href="/medications">
-                <a>{t("cart.continueShopping")}</a>
-              </Link>
+              {t("cart.continueShopping")}
             </Button>
           </div>
         )}

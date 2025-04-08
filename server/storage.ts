@@ -115,6 +115,7 @@ export interface IStorage {
   getCart(userId: number): Promise<Cart | undefined>;
   createCart(cart: InsertCart): Promise<Cart>;
   updateCart(userId: number, items: CartItem[]): Promise<Cart | undefined>;
+  clearCart(userId: number): Promise<boolean>;
   
   // Refill Request methods
   getRefillRequest(id: number): Promise<RefillRequest | undefined>;
@@ -1095,6 +1096,24 @@ export class MemStorage implements IStorage {
     
     this.carts.set(cart.id, updatedCart);
     return updatedCart;
+  }
+  
+  async clearCart(userId: number): Promise<boolean> {
+    const cart = await this.getCart(userId);
+    if (!cart) {
+      return true; // Cart already doesn't exist
+    }
+    
+    // Update the cart with an empty items array
+    const now = new Date();
+    const updatedCart: Cart = { 
+      ...cart, 
+      items: [],
+      updatedAt: now
+    };
+    
+    this.carts.set(cart.id, updatedCart);
+    return true;
   }
 
   // Refill Request methods
@@ -2291,6 +2310,31 @@ export class DatabaseStorage implements IStorage {
       .returning();
       
     return updatedCart;
+  }
+  
+  async clearCart(userId: number): Promise<boolean> {
+    // Get existing cart
+    const existingCart = await this.getCart(userId);
+    
+    if (!existingCart) {
+      return true; // Cart doesn't exist, so it's already "cleared"
+    }
+    
+    // Update the cart with an empty items array
+    try {
+      await db
+        .update(cart)
+        .set({ 
+          items: [],
+          updatedAt: new Date()
+        })
+        .where(eq(cart.userId, userId));
+      
+      return true;
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      return false;
+    }
   }
 
   // Refill Request methods
