@@ -69,13 +69,15 @@ async function comparePasswords(providedPassword: string, storedPassword: string
   console.log(`Comparing passwords - Provided: ${providedPassword.substring(0, 3)}***, Stored: ${storedPassword.substring(0, 10)}...`);
   
   try {
-    // Check if the stored password is a bcrypt hash
-    if (!storedPassword.startsWith('$2') && !storedPassword.includes('.')) {
-      console.log('Password does not appear to be hashed properly, using direct comparison');
-      // If not hashed (during development/testing), just do a direct comparison
-      return providedPassword === storedPassword;
+    // We're now using bcrypt for all password hashing
+    if (storedPassword.startsWith('$2')) {
+      // Using bcrypt
+      console.log('Using bcrypt comparison');
+      const result = await compare(providedPassword, storedPassword);
+      console.log(`Password comparison with bcrypt result: ${result}`);
+      return result;
     } else if (storedPassword.includes('.')) {
-      // Using our custom hash format (hash.salt)
+      // Legacy: Using our custom hash format (hash.salt)
       console.log('Using custom hash comparison');
       const [hashed, salt] = storedPassword.split(".");
       if (!hashed || !salt) {
@@ -83,15 +85,20 @@ async function comparePasswords(providedPassword: string, storedPassword: string
         return false;
       }
       
-      const hashedBuf = Buffer.from(hashed, "hex");
-      const suppliedBuf = (await scryptAsync(providedPassword, salt, 64)) as Buffer;
-      return timingSafeEqual(hashedBuf, suppliedBuf);
+      try {
+        const hashedBuf = Buffer.from(hashed, "hex");
+        const suppliedBuf = (await scryptAsync(providedPassword, salt, 64)) as Buffer;
+        return timingSafeEqual(hashedBuf, suppliedBuf);
+      } catch (err) {
+        console.error('Error in timingSafeEqual:', err);
+        // Fallback to regular comparison if buffer lengths don't match
+        const suppliedHash = (await scryptAsync(providedPassword, salt, 64)).toString('hex');
+        return suppliedHash === hashed;
+      }
     } else {
-      // Using bcrypt
-      console.log('Using bcrypt comparison');
-      const result = await compare(providedPassword, storedPassword);
-      console.log(`Password comparison with bcrypt result: ${result}`);
-      return result;
+      // For development/testing or un-hashed passwords
+      console.log('Password does not appear to be hashed properly, using direct comparison');
+      return providedPassword === storedPassword;
     }
   } catch (error) {
     console.error('Error comparing passwords:', error);

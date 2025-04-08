@@ -39,6 +39,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // These routes are defined in auth.ts
   setupAuth(app);
   
+  // Debugging endpoint to get all users (TEMPORARY)
+  app.get('/api/debug-users', async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Don't expose password hashes
+      const safeUsers = users.map(user => ({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        role: user.role
+      }));
+      res.json(safeUsers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   // Legacy User routes - consider migrating to auth.ts
   router.post("/users", validateRequest(insertUserSchema), async (req, res) => {
     try {
