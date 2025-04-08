@@ -100,6 +100,7 @@ export interface IStorage {
   getOrdersByUser(userId: number): Promise<Order[]>;
   getOrdersByPrescription(prescriptionId: number): Promise<Order[]>;
   getOrdersByStatus(status: string, limit?: number, offset?: number): Promise<{ orders: Order[], total: number }>;
+  getAllOrders(limit?: number, offset?: number, searchTerm?: string): Promise<{ orders: Order[], total: number }>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | undefined>;
   
@@ -871,6 +872,57 @@ export class MemStorage implements IStorage {
         const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
         return dateB - dateA; // Sort by newest first
       });
+    
+    return {
+      orders: filteredOrders.slice(offset, offset + limit),
+      total: filteredOrders.length
+    };
+  }
+  
+  async getAllOrders(limit: number = 20, offset: number = 0, searchTerm: string = ''): Promise<{ orders: Order[], total: number }> {
+    let filteredOrders = Array.from(this.orders.values());
+    
+    // Sort by newest first
+    filteredOrders = filteredOrders.sort((a, b) => {
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      return dateB - dateA;
+    });
+    
+    // Apply search term if provided
+    if (searchTerm) {
+      const lowerCaseSearch = searchTerm.toLowerCase();
+      
+      // Get all users for searching by user properties
+      const allUsers = Array.from(this.users.values());
+      
+      filteredOrders = filteredOrders.filter(order => {
+        // Search by order ID
+        if (order.id.toString().includes(lowerCaseSearch)) return true;
+        
+        // Search by order status
+        if (order.status.toLowerCase().includes(lowerCaseSearch)) return true;
+        
+        // Search by tracking number
+        if (order.trackingNumber && order.trackingNumber.toLowerCase().includes(lowerCaseSearch)) return true;
+        
+        // Get user associated with this order
+        const orderUser = allUsers.find(user => user.id === order.userId);
+        if (orderUser) {
+          // Search by user email
+          if (orderUser.email && orderUser.email.toLowerCase().includes(lowerCaseSearch)) return true;
+          
+          // Search by user name
+          if (orderUser.firstName && orderUser.firstName.toLowerCase().includes(lowerCaseSearch)) return true;
+          if (orderUser.lastName && orderUser.lastName.toLowerCase().includes(lowerCaseSearch)) return true;
+          
+          // Search by phone
+          if (orderUser.phone && orderUser.phone.toLowerCase().includes(lowerCaseSearch)) return true;
+        }
+        
+        return false;
+      });
+    }
     
     return {
       orders: filteredOrders.slice(offset, offset + limit),
@@ -2087,6 +2139,60 @@ export class DatabaseStorage implements IStorage {
       .limit(limit)
       .offset(offset);
       
+    return {
+      orders: results,
+      total: count
+    };
+  }
+  
+  async getAllOrders(limit: number = 20, offset: number = 0, searchTerm: string = ''): Promise<{ orders: Order[], total: number }> {
+    let query = db.select().from(orders);
+    let countQuery = db.select({ count: sql`count(*)`.mapWith(Number) }).from(orders);
+    
+    // If search term is provided, search across multiple fields
+    if (searchTerm) {
+      const lowerSearchTerm = `%${searchTerm.toLowerCase()}%`;
+      
+      // Join with users table to search by user properties
+      query = query
+        .leftJoin(users, eq(orders.userId, users.id))
+        .where(
+          or(
+            sql`LOWER(${orders.status}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${orders.trackingNumber}) LIKE ${lowerSearchTerm}`,
+            sql`CAST(${orders.id} AS TEXT) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.email}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.firstName}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.lastName}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.phone}) LIKE ${lowerSearchTerm}`
+          )
+        );
+      
+      // Apply the same conditions to the count query
+      countQuery = countQuery
+        .leftJoin(users, eq(orders.userId, users.id))
+        .where(
+          or(
+            sql`LOWER(${orders.status}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${orders.trackingNumber}) LIKE ${lowerSearchTerm}`,
+            sql`CAST(${orders.id} AS TEXT) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.email}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.firstName}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.lastName}) LIKE ${lowerSearchTerm}`,
+            sql`LOWER(${users.phone}) LIKE ${lowerSearchTerm}`
+          )
+        );
+    }
+    
+    // Get total count
+    const [{ count }] = await countQuery;
+    
+    // Add pagination and ordering to the main query
+    const results = await query
+      .orderBy(desc(orders.orderDate))
+      .limit(limit)
+      .offset(offset);
+    
     return {
       orders: results,
       total: count

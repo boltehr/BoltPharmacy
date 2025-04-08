@@ -6,11 +6,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, CheckCircle, AlertCircle, TruckIcon, FileText, RefreshCw } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, TruckIcon, FileText, RefreshCw, SearchIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/context/auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
 
 type Order = {
   id: number;
@@ -49,7 +50,10 @@ type OrderItem = {
 export default function OrderAdmin() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [selectedTab, setSelectedTab] = useState("by-status");
   const [selectedStatus, setSelectedStatus] = useState("pending");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchInputValue, setSearchInputValue] = useState("");
   const [page, setPage] = useState(0);
   const limit = 10;
 
@@ -60,8 +64,24 @@ export default function OrderAdmin() {
       const response = await apiRequest("GET", `/api/orders/status/${selectedStatus}?limit=${limit}&offset=${page * limit}`);
       return response.json();
     },
-    enabled: !!user && user.role === 'admin'
+    enabled: !!user && user.role === 'admin' && selectedTab === "by-status"
   });
+  
+  // Fetch all orders with search
+  const { data: allOrdersData, isLoading: isLoadingAll } = useQuery({
+    queryKey: ["/api/orders/all", searchTerm, page, limit],
+    queryFn: async () => {
+      const response = await apiRequest("GET", `/api/orders/all?search=${encodeURIComponent(searchTerm)}&limit=${limit}&offset=${page * limit}`);
+      return response.json();
+    },
+    enabled: !!user && user.role === 'admin' && selectedTab === "all-orders"
+  });
+  
+  // Handle search input submission
+  const handleSearch = () => {
+    setSearchTerm(searchInputValue);
+    setPage(0); // Reset to first page on new search
+  };
 
   // Approve and ship order mutation
   const approveMutation = useMutation({
@@ -130,14 +150,22 @@ export default function OrderAdmin() {
         <h1 className="text-3xl font-bold">Order Management</h1>
       </div>
 
-      <Tabs defaultValue="pending" onValueChange={setSelectedStatus}>
+      <Tabs defaultValue="by-status" onValueChange={setSelectedTab}>
         <TabsList className="mb-6">
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="shipped">Shipped</TabsTrigger>
-          <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+          <TabsTrigger value="by-status">View by Status</TabsTrigger>
+          <TabsTrigger value="all-orders">All Orders (with Search)</TabsTrigger>
         </TabsList>
 
-        <TabsContent value={selectedStatus}>
+        <TabsContent value="by-status">
+          <Tabs defaultValue="pending" onValueChange={setSelectedStatus}>
+            <TabsList className="mb-6">
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="shipped">Shipped</TabsTrigger>
+              <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+              <TabsTrigger value="all">All Statuses</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={selectedStatus}>
           {isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
