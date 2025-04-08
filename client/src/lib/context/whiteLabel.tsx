@@ -54,7 +54,7 @@ export const WhiteLabelProvider = ({ children }: { children: ReactNode }) => {
     const fetchConfig = async () => {
       try {
         setLoading(true);
-        const response = await apiRequest("GET", "/api/white-label/config");
+        const response = await apiRequest("GET", "/api/white-labels/config");
         const data = await response.json();
         setConfig(data);
         
@@ -80,7 +80,7 @@ export const WhiteLabelProvider = ({ children }: { children: ReactNode }) => {
   const updateConfig = async (newConfig: Partial<WhiteLabelConfig>) => {
     try {
       setLoading(true);
-      const response = await apiRequest("PATCH", "/api/white-label/config", newConfig);
+      const response = await apiRequest("PATCH", "/api/white-labels/config", newConfig);
       const updatedConfig = await response.json();
       setConfig(updatedConfig);
       

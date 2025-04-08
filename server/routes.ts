@@ -1367,7 +1367,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Route to get the configuration for the frontend
-  router.get("/white-label/config", async (req, res) => {
+  router.get("/white-labels/config", async (req, res) => {
     try {
       // First try to get the active white label
       let whiteLabel = await storage.getActiveWhiteLabel();
@@ -1394,6 +1394,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error fetching white label config:", err);
       res.status(500).json({ message: "Failed to fetch white label config" });
+    }
+  });
+  
+  router.patch("/white-labels/config", isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Check if user is an admin
+      if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: "Only admins can update the white label configuration" });
+      }
+      
+      // First try to get the active white label
+      let whiteLabel = await storage.getActiveWhiteLabel();
+      
+      // If no active white label, try the default one
+      if (!whiteLabel) {
+        whiteLabel = await storage.getDefaultWhiteLabel();
+      }
+      
+      // If no white label exists, create a new one with the provided config
+      if (!whiteLabel) {
+        const newWhiteLabel = await storage.createWhiteLabel({
+          ...req.body,
+          isActive: true,
+          isDefault: true
+        });
+        
+        return res.status(201).json(newWhiteLabel);
+      }
+      
+      // Update the existing white label
+      const updatedWhiteLabel = await storage.updateWhiteLabel(whiteLabel.id, req.body);
+      
+      res.json(updatedWhiteLabel);
+    } catch (err) {
+      console.error("Error updating white label config:", err);
+      res.status(500).json({ message: "Failed to update white label config" });
     }
   });
   
