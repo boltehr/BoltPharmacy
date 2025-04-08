@@ -36,6 +36,7 @@ import UserAdmin from "@/pages/user-admin";
 import PrescriptionVerification from "@/pages/prescription-verification";
 import OrderAdmin from "@/pages/order-admin";
 import AllergiesAdmin from "@/pages/allergies-admin";
+import InventoryAdmin from "@/pages/inventory-admin";
 
 function Router() {
   return (
@@ -124,6 +125,11 @@ function Router() {
       <Route path="/admin/allergies">
         <ProtectedRoute>
           <AllergiesAdmin />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/inventory">
+        <ProtectedRoute>
+          <InventoryAdmin />
         </ProtectedRoute>
       </Route>
       <Route component={NotFound} />

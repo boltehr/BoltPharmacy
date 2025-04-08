@@ -1876,6 +1876,411 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Inventory Provider routes (admin only)
+  router.get("/inventory/providers", isAdmin, async (req, res) => {
+    try {
+      const activeOnly = req.query.active === 'true';
+      const providers = await storage.getInventoryProviders(activeOnly);
+      res.json(providers);
+    } catch (err) {
+      console.error("Error fetching inventory providers:", err);
+      res.status(500).json({ message: "Failed to fetch inventory providers" });
+    }
+  });
+
+  router.get("/inventory/providers/:id", isAdmin, async (req, res) => {
+    try {
+      const provider = await storage.getInventoryProvider(Number(req.params.id));
+      if (!provider) {
+        return res.status(404).json({ message: "Inventory provider not found" });
+      }
+      res.json(provider);
+    } catch (err) {
+      console.error("Error fetching inventory provider:", err);
+      res.status(500).json({ message: "Failed to fetch inventory provider" });
+    }
+  });
+
+  router.post("/inventory/providers", isAdmin, validateRequest(insertInventoryProviderSchema), async (req, res) => {
+    try {
+      const existingProvider = await storage.getInventoryProviderByName(req.body.name);
+      if (existingProvider) {
+        return res.status(409).json({ message: "A provider with this name already exists" });
+      }
+      
+      const provider = await storage.createInventoryProvider(req.body);
+      res.status(201).json(provider);
+    } catch (err) {
+      console.error("Error creating inventory provider:", err);
+      res.status(500).json({ message: "Failed to create inventory provider" });
+    }
+  });
+
+  router.put("/inventory/providers/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const provider = await storage.getInventoryProvider(id);
+      
+      if (!provider) {
+        return res.status(404).json({ message: "Inventory provider not found" });
+      }
+      
+      // Validate the request body
+      const parseResult = insertInventoryProviderSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid inventory provider data", 
+          errors: parseResult.error.errors 
+        });
+      }
+      
+      // If name is being updated, check for conflicts
+      if (parseResult.data.name && parseResult.data.name !== provider.name) {
+        const existingProvider = await storage.getInventoryProviderByName(parseResult.data.name);
+        if (existingProvider && existingProvider.id !== id) {
+          return res.status(409).json({ message: 'A provider with this name already exists' });
+        }
+      }
+      
+      const updatedProvider = await storage.updateInventoryProvider(id, parseResult.data);
+      res.json(updatedProvider);
+    } catch (err) {
+      console.error("Error updating inventory provider:", err);
+      res.status(500).json({ message: "Failed to update inventory provider" });
+    }
+  });
+
+  router.delete("/inventory/providers/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const provider = await storage.getInventoryProvider(id);
+      
+      if (!provider) {
+        return res.status(404).json({ message: "Inventory provider not found" });
+      }
+      
+      // Get all items for this provider to check if any are in use
+      const items = await storage.getInventoryItemsByProvider(id);
+      if (items.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete provider with associated inventory items. Deactivate it instead.",
+          itemCount: items.length
+        });
+      }
+      
+      const deleted = await storage.deleteInventoryProvider(id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete inventory provider" });
+      }
+      
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting inventory provider:", err);
+      res.status(500).json({ message: "Failed to delete inventory provider" });
+    }
+  });
+  
+  // Inventory Item routes
+  router.get("/inventory/items", isAdmin, async (req, res) => {
+    try {
+      const providerId = req.query.providerId ? Number(req.query.providerId) : undefined;
+      
+      if (providerId) {
+        const items = await storage.getInventoryItemsByProvider(providerId);
+        return res.json(items);
+      } else {
+        // This endpoint could be expensive if there are many items across providers
+        // In a real application, you would want to implement pagination here
+        const allItems = []; 
+        const providers = await storage.getInventoryProviders(true);
+        
+        for (const provider of providers) {
+          const items = await storage.getInventoryItemsByProvider(provider.id);
+          allItems.push(...items);
+        }
+        
+        res.json(allItems);
+      }
+    } catch (err) {
+      console.error("Error fetching inventory items:", err);
+      res.status(500).json({ message: "Failed to fetch inventory items" });
+    }
+  });
+
+  router.get("/inventory/items/:id", isAdmin, async (req, res) => {
+    try {
+      const item = await storage.getInventoryItem(Number(req.params.id));
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      res.json(item);
+    } catch (err) {
+      console.error("Error fetching inventory item:", err);
+      res.status(500).json({ message: "Failed to fetch inventory item" });
+    }
+  });
+
+  router.post("/inventory/items", isAdmin, validateRequest(insertInventoryItemSchema), async (req, res) => {
+    try {
+      // Verify provider exists
+      const provider = await storage.getInventoryProvider(req.body.providerId);
+      if (!provider) {
+        return res.status(404).json({ message: "Inventory provider not found" });
+      }
+      
+      // Check if item with external ID already exists for this provider
+      const existingItem = await storage.getInventoryItemByExternalId(req.body.providerId, req.body.externalId);
+      if (existingItem) {
+        return res.status(409).json({ message: "An item with this external ID already exists for this provider" });
+      }
+      
+      const item = await storage.createInventoryItem(req.body);
+      res.status(201).json(item);
+    } catch (err) {
+      console.error("Error creating inventory item:", err);
+      res.status(500).json({ message: "Failed to create inventory item" });
+    }
+  });
+
+  router.put("/inventory/items/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const item = await storage.getInventoryItem(id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      
+      // Validate the request body
+      const parseResult = insertInventoryItemSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid inventory item data", 
+          errors: parseResult.error.errors 
+        });
+      }
+      
+      // If provider or external ID is changing, check for conflicts
+      if ((parseResult.data.providerId || parseResult.data.externalId) && 
+          (parseResult.data.providerId !== item.providerId || parseResult.data.externalId !== item.externalId)) {
+        const providerId = parseResult.data.providerId || item.providerId;
+        const externalId = parseResult.data.externalId || item.externalId;
+        
+        const existingItem = await storage.getInventoryItemByExternalId(providerId, externalId);
+        if (existingItem && existingItem.id !== id) {
+          return res.status(409).json({ message: 'An item with this external ID already exists for this provider' });
+        }
+      }
+      
+      const updatedItem = await storage.updateInventoryItem(id, parseResult.data);
+      res.json(updatedItem);
+    } catch (err) {
+      console.error("Error updating inventory item:", err);
+      res.status(500).json({ message: "Failed to update inventory item" });
+    }
+  });
+
+  router.delete("/inventory/items/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const item = await storage.getInventoryItem(id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      
+      // Check if this item is used in any mappings
+      const mappings = await storage.getInventoryMappingsByItem(id);
+      if (mappings.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete item that is mapped to medications. Remove mappings first.",
+          mappingCount: mappings.length
+        });
+      }
+      
+      const deleted = await storage.deleteInventoryItem(id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete inventory item" });
+      }
+      
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting inventory item:", err);
+      res.status(500).json({ message: "Failed to delete inventory item" });
+    }
+  });
+  
+  // Inventory Mapping routes
+  router.get("/inventory/mappings", isAdmin, async (req, res) => {
+    try {
+      // We can filter by medication ID or inventory item ID
+      const medicationId = req.query.medicationId ? Number(req.query.medicationId) : undefined;
+      const inventoryItemId = req.query.inventoryItemId ? Number(req.query.inventoryItemId) : undefined;
+      
+      let mappings = [];
+      
+      if (medicationId) {
+        mappings = await storage.getInventoryMappingsByMedication(medicationId);
+      } else if (inventoryItemId) {
+        mappings = await storage.getInventoryMappingsByItem(inventoryItemId);
+      } else {
+        // In a real application, this would need pagination
+        // For now, we'll just return all mappings (limit to 100 for safety)
+        const allMeds = await storage.getMedications(100, 0);
+        
+        for (const med of allMeds) {
+          const medMappings = await storage.getInventoryMappingsByMedication(med.id);
+          mappings.push(...medMappings);
+        }
+      }
+      
+      // Enhance mappings with medication and inventory item details
+      const enhancedMappings = await Promise.all(mappings.map(async (mapping) => {
+        const medication = await storage.getMedication(mapping.medicationId);
+        const inventoryItem = await storage.getInventoryItem(mapping.inventoryItemId);
+        const provider = inventoryItem ? await storage.getInventoryProvider(inventoryItem.providerId) : null;
+        
+        return {
+          ...mapping,
+          medication: medication || null,
+          inventoryItem: inventoryItem || null,
+          provider: provider || null
+        };
+      }));
+      
+      res.json(enhancedMappings);
+    } catch (err) {
+      console.error("Error fetching inventory mappings:", err);
+      res.status(500).json({ message: "Failed to fetch inventory mappings" });
+    }
+  });
+
+  router.get("/inventory/mappings/:id", isAdmin, async (req, res) => {
+    try {
+      const mapping = await storage.getInventoryMapping(Number(req.params.id));
+      if (!mapping) {
+        return res.status(404).json({ message: "Inventory mapping not found" });
+      }
+      
+      // Get related entities
+      const medication = await storage.getMedication(mapping.medicationId);
+      const inventoryItem = await storage.getInventoryItem(mapping.inventoryItemId);
+      const provider = inventoryItem ? await storage.getInventoryProvider(inventoryItem.providerId) : null;
+      
+      res.json({
+        ...mapping,
+        medication: medication || null,
+        inventoryItem: inventoryItem || null,
+        provider: provider || null
+      });
+    } catch (err) {
+      console.error("Error fetching inventory mapping:", err);
+      res.status(500).json({ message: "Failed to fetch inventory mapping" });
+    }
+  });
+
+  router.post("/inventory/mappings", isAdmin, validateRequest(insertInventoryMappingSchema), async (req, res) => {
+    try {
+      // Verify medication exists
+      const medication = await storage.getMedication(req.body.medicationId);
+      if (!medication) {
+        return res.status(404).json({ message: "Medication not found" });
+      }
+      
+      // Verify inventory item exists
+      const inventoryItem = await storage.getInventoryItem(req.body.inventoryItemId);
+      if (!inventoryItem) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      
+      // Check if a mapping already exists between these items
+      const existingMapping = await storage.getInventoryMappingByItemAndMedication(
+        req.body.inventoryItemId, 
+        req.body.medicationId
+      );
+      
+      if (existingMapping) {
+        return res.status(409).json({ 
+          message: "A mapping already exists between this medication and inventory item",
+          existingId: existingMapping.id
+        });
+      }
+      
+      // If this is a primary mapping, we need to set all other mappings for this medication to non-primary
+      if (req.body.isPrimary) {
+        const existingMappings = await storage.getInventoryMappingsByMedication(req.body.medicationId);
+        for (const mapping of existingMappings) {
+          if (mapping.isPrimary) {
+            await storage.updateInventoryMapping(mapping.id, { isPrimary: false });
+          }
+        }
+      }
+      
+      const mapping = await storage.createInventoryMapping(req.body);
+      res.status(201).json(mapping);
+    } catch (err) {
+      console.error("Error creating inventory mapping:", err);
+      res.status(500).json({ message: "Failed to create inventory mapping" });
+    }
+  });
+
+  router.put("/inventory/mappings/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const mapping = await storage.getInventoryMapping(id);
+      
+      if (!mapping) {
+        return res.status(404).json({ message: "Inventory mapping not found" });
+      }
+      
+      // Validate the request body
+      const parseResult = insertInventoryMappingSchema.partial().safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          message: "Invalid inventory mapping data", 
+          errors: parseResult.error.errors 
+        });
+      }
+      
+      // If making this a primary mapping, update all other mappings for this medication
+      if (parseResult.data.isPrimary && parseResult.data.isPrimary !== mapping.isPrimary) {
+        const existingMappings = await storage.getInventoryMappingsByMedication(mapping.medicationId);
+        for (const m of existingMappings) {
+          if (m.id !== id && m.isPrimary) {
+            await storage.updateInventoryMapping(m.id, { isPrimary: false });
+          }
+        }
+      }
+      
+      const updatedMapping = await storage.updateInventoryMapping(id, parseResult.data);
+      res.json(updatedMapping);
+    } catch (err) {
+      console.error("Error updating inventory mapping:", err);
+      res.status(500).json({ message: "Failed to update inventory mapping" });
+    }
+  });
+
+  router.delete("/inventory/mappings/:id", isAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const mapping = await storage.getInventoryMapping(id);
+      
+      if (!mapping) {
+        return res.status(404).json({ message: "Inventory mapping not found" });
+      }
+      
+      const deleted = await storage.deleteInventoryMapping(id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete inventory mapping" });
+      }
+      
+      res.status(204).send();
+    } catch (err) {
+      console.error("Error deleting inventory mapping:", err);
+      res.status(500).json({ message: "Failed to delete inventory mapping" });
+    }
+  });
+
   // Register API routes
   app.use("/api", router);
   

@@ -252,6 +252,13 @@ const Header = () => {
                             </a>
                           </Link>
                         </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin/inventory">
+                            <a className="w-full cursor-pointer">
+                              {t("admin.inventory", "Inventory Management")}
+                            </a>
+                          </Link>
+                        </DropdownMenuItem>
                       </>
                     )}
 
@@ -498,6 +505,18 @@ const Header = () => {
                     onClick={() => setIsOpen(false)}
                   >
                     {t("admin.allergies")}
+                  </a>
+                </Link>
+                <Link href="/admin/inventory">
+                  <a
+                    className={`block pl-3 pr-4 py-2 border-l-4 text-base font-medium ${
+                      isActive("/admin/inventory")
+                        ? "border-primary text-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/50 hover:text-primary/90"
+                    }`}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {t("admin.inventory", "Inventory Management")}
                   </a>
                 </Link>
               </div>
