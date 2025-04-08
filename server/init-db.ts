@@ -53,7 +53,7 @@ export async function initializeDatabase() {
   try {
     console.log('Adding test user...');
     // Check if user already exists
-    const existingUser = await storage.getUserByEmail(testUser.email);
+    const existingUser = await storage.getUserByUsername(testUser.email);
     if (!existingUser) {
       // Hash the password before creating user
       const hashedPassword = await hashPassword(testUser.password);
