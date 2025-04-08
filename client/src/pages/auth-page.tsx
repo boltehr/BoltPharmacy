@@ -28,12 +28,29 @@ const registerFormSchema = z.object({
     .refine(email => email.includes("@") && email.includes("."), {
       message: "Please enter a valid email address with domain (e.g., name@example.com)"
     })
-    // Validate that the email domain actually exists (basic check)
+    // Validate that the email domain actually exists (enhanced check)
     .refine(email => {
       const domain = email.split('@')[1];
-      return domain && domain.split('.').length >= 2 && domain.split('.')[1].length >= 2;
+      if (!domain) return false;
+      
+      // Check if domain has at least one dot and proper format
+      if (!domain.includes('.') || domain.endsWith('.') || domain.startsWith('.')) {
+        return false;
+      }
+      
+      // Check if TLD (Top Level Domain) is at least 2 characters
+      const tld = domain.split('.').pop();
+      if (!tld || tld.length < 2) {
+        return false;
+      }
+      
+      // Check for common valid TLDs
+      const validTLDs = ['com', 'org', 'net', 'edu', 'gov', 'mil', 'int', 'io', 'co', 'ai', 'app', 
+        'dev', 'info', 'biz', 'name', 'pro', 'health', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn'];
+      
+      return validTLDs.includes(tld) || tld.length >= 2;
     }, {
-      message: "Please enter an email with a valid domain"
+      message: "Please enter an email with a valid domain (e.g., gmail.com, outlook.com)"
     }),
   password: z.string()
     .min(8, "Password must be at least 8 characters")
@@ -52,9 +69,13 @@ const registerFormSchema = z.object({
   confirmPassword: z.string()
     .min(1, "Please confirm your password"),
   phone: z.string()
-    .optional()
-    .refine(val => !val || /^\+?[1-9]\d{9,14}$/.test(val), {
-      message: "Please enter a valid phone number"
+    .min(10, "Please enter a valid cell phone number with at least 10 digits")
+    .max(15, "Phone number is too long")
+    .refine(val => {
+      // Support formats like: +1 (555) 123-4567, 555-123-4567, 5551234567
+      return /^(\+\d{1,3})?[\s.-]?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})$/.test(val);
+    }, {
+      message: "Please enter a valid cell phone number (e.g., 555-123-4567)"
     }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
@@ -212,6 +233,9 @@ export default function AuthPage() {
                         <FormControl>
                           <Input type="password" placeholder="••••••••" {...field} />
                         </FormControl>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Must be at least 8 characters with uppercase, lowercase, number & special character
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -234,12 +258,12 @@ export default function AuthPage() {
                     name="phone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Phone Number (optional)</FormLabel>
+                        <FormLabel>Cell Phone Number</FormLabel>
                         <FormControl>
-                          <Input placeholder="+1 555 123 4567" {...field} />
+                          <Input placeholder="555-123-4567" {...field} />
                         </FormControl>
                         <div className="text-xs text-muted-foreground mt-1">
-                          For delivery notifications and order updates
+                          Mobile number for SMS delivery notifications and order updates
                         </div>
                         <FormMessage />
                       </FormItem>
