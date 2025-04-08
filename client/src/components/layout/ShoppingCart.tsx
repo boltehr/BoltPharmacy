@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { X, ShoppingBag, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,7 @@ import { useCart } from "@/lib/context/cart";
 const ShoppingCart = () => {
   const { t } = useTranslation();
   const { isOpen, toggleCart, cartItems, removeFromCart, updateQuantity } = useCart();
+  const [, navigate] = useLocation();
 
   if (!isOpen) return null;
 
@@ -42,7 +43,7 @@ const ShoppingCart = () => {
                 className="mt-4"
                 onClick={() => {
                   toggleCart();
-                  window.location.href = "/medications";
+                  navigate("/medications");
                 }}
               >
                 {t("cart.continueShopping")}
@@ -116,7 +117,7 @@ const ShoppingCart = () => {
               className="w-full mt-4"
               onClick={() => {
                 toggleCart();
-                window.location.href = "/checkout";
+                navigate("/checkout");
               }}
             >
               {t("cart.proceedToCheckout")}
@@ -126,7 +127,7 @@ const ShoppingCart = () => {
               className="w-full mt-2"
               onClick={() => {
                 toggleCart();
-                window.location.href = "/medications";
+                navigate("/medications");
               }}
             >
               {t("cart.continueShopping")}
