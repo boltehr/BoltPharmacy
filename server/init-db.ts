@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { InsertCategory, InsertMedication, InsertUser } from '@shared/schema';
+import { hashPassword, initializeAdminUser } from './auth';
 
 /**
  * Initialize the database with sample data 
@@ -37,7 +38,7 @@ export async function initializeDatabase() {
   const adminUser: InsertUser = {
     username: 'admin',
     email: 'admin@example.com',
-    password: 'Admin123!',
+    password: 'Admin123!', // Will be hashed before storage
     firstName: 'Admin',
     lastName: 'User',
     phone: '555-987-6543',
@@ -46,6 +47,11 @@ export async function initializeDatabase() {
     sexAtBirth: 'female',
     role: 'admin'
   };
+  
+  console.log('Admin user configuration:', JSON.stringify({
+    email: adminUser.email,
+    role: adminUser.role
+  }));
   
   try {
     console.log('Adding test user...');
@@ -59,13 +65,12 @@ export async function initializeDatabase() {
     }
     
     console.log('Adding admin user...');
-    // Check if admin user already exists
-    const existingAdmin = await storage.getUserByEmail(adminUser.email);
-    if (!existingAdmin) {
-      await storage.createUser(adminUser);
-      console.log('Admin user created successfully');
-    } else {
-      console.log('Admin user already exists, skipping creation');
+    // Use our new admin initialization function
+    try {
+      const result = await initializeAdminUser();
+      console.log('Admin user initialization result:', result);
+    } catch (error) {
+      console.error('Error initializing admin user:', error);
     }
   } catch (error) {
     console.error('Failed to create test users:', error);

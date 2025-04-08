@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { ZodError } from "zod";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin } from './auth';
+import { setupAuth, isAuthenticated, isAdmin, hashPassword } from './auth';
 import { shippingService, type ShippingAddress, type PackageDetails } from './services/shipping';
 import { 
   insertUserSchema, 

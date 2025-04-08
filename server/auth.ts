@@ -48,7 +48,7 @@ declare global {
 }
 
 // Helper to hash passwords 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   return hash(password, 10);
 }
 
@@ -399,8 +399,49 @@ export async function resetPassword(req: Request, res: Response) {
   }
 }
 
-// Function to set up authentication routes
+// Function to initialize or reset the admin user
+export async function initializeAdminUser() {
+  try {
+    const adminUser = {
+      email: 'admin@example.com',
+      username: 'admin',
+      password: 'Admin123!',
+      firstName: 'Admin',
+      lastName: 'User',
+      phone: '555-987-6543',
+      address: '456 Admin St, Admintown, USA',
+      dateOfBirth: '1985-05-05',
+      sexAtBirth: 'female',
+      role: 'admin'
+    };
+    
+    // Check if admin user already exists
+    const existingAdmin = await storage.getUserByEmail(adminUser.email);
+    
+    if (existingAdmin) {
+      console.log('Admin user exists, resetting password:', existingAdmin.id);
+      const hashedPassword = await hashPassword(adminUser.password);
+      await storage.resetPassword(existingAdmin.id, hashedPassword);
+      console.log('Admin password reset with newly hashed password');
+      return { message: 'Admin user password reset', id: existingAdmin.id };
+    } else {
+      // Create new admin user with hashed password
+      const hashedPassword = await hashPassword(adminUser.password);
+      const newAdmin = await storage.createUser({
+        ...adminUser,
+        password: hashedPassword
+      });
+      console.log('New admin user created:', newAdmin.id);
+      return { message: 'Admin user created', id: newAdmin.id };
+    }
+  } catch (error) {
+    console.error('Failed to initialize admin user:', error);
+    throw error;
+  }
+}
+
 export function setupAuth(app: Express) {
+  // The admin initialization route is set up below
   // Set up session middleware
   app.use((req: Request, _res: Response, next: NextFunction) => {
     if (req.session && req.session.userId) {
@@ -416,4 +457,15 @@ export function setupAuth(app: Express) {
   app.get("/api/user", getCurrentUser);
   app.post("/api/forgot-password", forgotPassword);
   app.post("/api/reset-password", resetPassword);
+  
+  // Admin user initialization/reset route
+  app.get("/api/reinitialize-admin-user", async (_req, res) => {
+    try {
+      const result = await initializeAdminUser();
+      res.json(result);
+    } catch (error) {
+      console.error('Admin initialization API error:', error);
+      res.status(500).json({ error: 'Failed to reinitialize admin user' });
+    }
+  });
 }
