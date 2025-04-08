@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Helmet } from "react-helmet-async";
-import { Loader2, PlusCircle, CheckCircle, XCircle, Edit, Trash } from "lucide-react";
+import { Loader2, PlusCircle, CheckCircle, XCircle, Edit, Trash, Download, Globe } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -51,6 +51,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 // Form validation schema for creating/editing white label configs
 const whiteLabelFormSchema = z.object({
@@ -104,6 +109,8 @@ const defaultValues: Partial<WhiteLabelFormValues> = {
 export default function WhiteLabelAdmin() {
   const { loading, config, updateConfig } = useWhiteLabel();
   const { toast } = useToast();
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [isParsingWebsite, setIsParsingWebsite] = useState(false);
   
   // Get white label configurations
   const { 
@@ -119,6 +126,47 @@ export default function WhiteLabelAdmin() {
   
   // Current default white label
   const defaultWhiteLabel = whiteLabels.find((wl: WhiteLabel) => wl.isDefault) || null;
+  
+  // Parse theme from website URL
+  const parseWebsiteThemeMutation = useMutation({
+    mutationFn: async (url: string) => {
+      setIsParsingWebsite(true);
+      const res = await apiRequest('POST', '/api/white-labels/parse-website', { url });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      setIsParsingWebsite(false);
+      
+      // Update form values with parsed theme
+      form.setValue('primaryColor', data.primaryColor);
+      form.setValue('secondaryColor', data.secondaryColor);
+      form.setValue('accentColor', data.accentColor);
+      form.setValue('fontFamily', data.fontFamily);
+      form.setValue('borderRadius', data.borderRadius);
+      
+      // If logo or favicon was found, update those too
+      if (data.logoUrl) {
+        form.setValue('logo', data.logoUrl);
+      }
+      if (data.favicon) {
+        form.setValue('favicon', data.favicon);
+      }
+      
+      // Show success message
+      toast({
+        title: 'Website theme imported',
+        description: `Theme successfully imported from ${websiteUrl}`,
+      });
+    },
+    onError: (error) => {
+      setIsParsingWebsite(false);
+      toast({
+        title: 'Failed to import website theme',
+        description: error.message || 'An error occurred while importing the theme',
+        variant: 'destructive',
+      });
+    },
+  });
   
   // Create a new white label configuration
   const createWhiteLabelMutation = useMutation({
@@ -632,6 +680,65 @@ export default function WhiteLabelAdmin() {
                     <div className="space-y-4 md:col-span-2">
                       <h3 className="text-lg font-semibold mt-6">Branding</h3>
                       <Separator />
+                    </div>
+                    
+                    {/* Website Theme Parser */}
+                    <div className="md:col-span-2 bg-secondary/30 p-4 rounded-lg border">
+                      <div className="space-y-4">
+                        <div className="flex items-center">
+                          <Globe className="mr-2 h-5 w-5 text-primary" />
+                          <h4 className="text-md font-medium">Import Theme from Website</h4>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Extract colors, fonts, and other branding elements from an existing website.
+                        </p>
+                        
+                        <div className="flex gap-2 items-center">
+                          <Input
+                            placeholder="Enter website URL (e.g., dirxhealth.com)"
+                            value={websiteUrl}
+                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={() => {
+                              if (!websiteUrl) {
+                                toast({
+                                  title: "URL required",
+                                  description: "Please enter a website URL to import a theme",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              parseWebsiteThemeMutation.mutate(websiteUrl);
+                            }}
+                            disabled={isParsingWebsite || !websiteUrl}
+                          >
+                            {isParsingWebsite ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Parsing...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="mr-2 h-4 w-4" />
+                                Import Theme
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        
+                        <Alert variant="default" className="bg-primary/10 border-primary/30">
+                          <AlertTitle className="flex items-center text-sm font-medium">
+                            <Download className="mr-2 h-4 w-4" /> About Website Theme Parsing
+                          </AlertTitle>
+                          <AlertDescription className="text-xs">
+                            This tool will attempt to extract colors, fonts, logo, and favicon from the provided website.
+                            Results may vary depending on how the site is built. Best results come from sites with clear branding
+                            elements and standard CSS practices.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
                     </div>
 
                     <FormField

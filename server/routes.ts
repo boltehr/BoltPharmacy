@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin, hashPassword, initializeAdminUser } from './auth';
 import { shippingService, type ShippingAddress, type PackageDetails } from './services/shipping';
+import { parseWebsiteTheme } from './services/websiteParser';
 import { 
   insertUserSchema, 
   insertMedicationSchema,
@@ -1447,6 +1448,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error("Error fetching default white label:", err);
       res.status(500).json({ message: "Failed to fetch default white label" });
+    }
+  });
+  
+  // New endpoint to parse theme from a website URL
+  router.post("/white-labels/parse-website", isAuthenticated, async (req, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+      
+      console.log(`Attempting to parse theme from website: ${url}`);
+      const theme = await parseWebsiteTheme(url);
+      
+      console.log(`Successfully parsed theme from ${url}:`, theme);
+      res.json(theme);
+    } catch (error) {
+      console.error("Error parsing website theme:", error);
+      res.status(500).json({ 
+        message: "Failed to parse website theme", 
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
   
