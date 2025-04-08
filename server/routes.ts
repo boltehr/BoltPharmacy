@@ -1513,7 +1513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // White Label Default Configuration routes
-  router.post("/white-label/:id/set-default", isAuthenticated, async (req, res) => {
+  router.post("/white-labels/:id/set-default", isAuthenticated, async (req, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: "Authentication required" });

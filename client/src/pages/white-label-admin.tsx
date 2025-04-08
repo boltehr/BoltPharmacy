@@ -108,7 +108,7 @@ export default function WhiteLabelAdmin() {
     data: whiteLabels = [] as WhiteLabel[],
     isLoading: isWhiteLabelsLoading
   } = useQuery<WhiteLabel[]>({
-    queryKey: ['/api/white-label'],
+    queryKey: ['/api/white-labels'],
     queryFn: getQueryFn({ on401: "throw" }),
   });
   
@@ -121,11 +121,11 @@ export default function WhiteLabelAdmin() {
   // Create a new white label configuration
   const createWhiteLabelMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('POST', '/api/white-label', data);
+      const res = await apiRequest('POST', '/api/white-labels', data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/white-labels'] });
       toast({
         title: 'White label created',
         description: 'The white label configuration has been created successfully.',
@@ -143,11 +143,11 @@ export default function WhiteLabelAdmin() {
   // Update an existing white label configuration
   const updateWhiteLabelMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest('PATCH', `/api/white-label/${data.id}`, data);
+      const res = await apiRequest('PUT', `/api/white-labels/${data.id}`, data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/white-labels'] });
       toast({
         title: 'White label updated',
         description: 'The white label configuration has been updated successfully.',
@@ -165,11 +165,11 @@ export default function WhiteLabelAdmin() {
   // Activate a white label configuration
   const activateWhiteLabelMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('PATCH', `/api/white-label/${id}/activate`, {});
+      const res = await apiRequest('POST', `/api/white-labels/${id}/activate`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/white-labels'] });
       toast({
         title: 'White label activated',
         description: 'The white label configuration has been activated successfully.',
@@ -187,11 +187,11 @@ export default function WhiteLabelAdmin() {
   // Deactivate a white label configuration
   const deactivateWhiteLabelMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('PATCH', `/api/white-label/${id}/deactivate`, {});
+      const res = await apiRequest('POST', `/api/white-labels/${id}/deactivate`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/white-labels'] });
       toast({
         title: 'White label deactivated',
         description: 'The white label configuration has been deactivated successfully.',
@@ -209,11 +209,11 @@ export default function WhiteLabelAdmin() {
   // Set a white label configuration as default
   const setDefaultWhiteLabelMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('POST', `/api/white-label/${id}/set-default`, {});
+      const res = await apiRequest('POST', `/api/white-labels/${id}/set-default`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/white-labels'] });
       toast({
         title: 'Default white label set',
         description: 'The white label configuration has been set as the default successfully.',
@@ -231,11 +231,11 @@ export default function WhiteLabelAdmin() {
   // Unset a white label configuration as default
   const unsetDefaultWhiteLabelMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest('POST', `/api/white-label/${id}/unset-default`, {});
+      const res = await apiRequest('POST', `/api/white-labels/${id}/unset-default`, {});
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/white-label'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/white-labels'] });
       toast({
         title: 'Default white label unset',
         description: 'The white label configuration is no longer the default.',
