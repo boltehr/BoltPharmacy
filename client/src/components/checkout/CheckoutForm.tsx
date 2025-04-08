@@ -55,7 +55,7 @@ type FormValues = z.infer<typeof formSchema>;
 const CheckoutForm = () => {
   const [, navigate] = useLocation();
   const { user } = useAuth();
-  const { cart, clearCart } = useCart();
+  const { cartItems, clearCart } = useCart();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,7 +78,7 @@ const CheckoutForm = () => {
   );
 
   // Calculate totals
-  const subtotal = cart.reduce(
+  const subtotal = cartItems.reduce(
     (total, item) => total + item.price * item.quantity,
     0
   );
@@ -127,7 +127,7 @@ const CheckoutForm = () => {
   const total = subtotal + shipping;
 
   const onSubmit = async (values: FormValues) => {
-    if (cart.length === 0) {
+    if (cartItems.length === 0) {
       toast({
         title: "Your cart is empty",
         description: "Please add items to your cart before checking out",
@@ -502,7 +502,7 @@ const CheckoutForm = () => {
           <CardContent className="pt-6">
             <h3 className="text-lg font-semibold mb-4">Order Summary</h3>
             
-            {cart.length === 0 ? (
+            {cartItems.length === 0 ? (
               <div className="text-center py-6">
                 <AlertCircle className="mx-auto h-12 w-12 text-neutral-300 mb-2" />
                 <p className="text-neutral-600">Your cart is empty</p>
@@ -510,7 +510,7 @@ const CheckoutForm = () => {
             ) : (
               <>
                 <div className="space-y-4 mb-4">
-                  {cart.map((item) => (
+                  {cartItems.map((item) => (
                     <div key={item.medicationId} className="flex justify-between">
                       <div className="flex-1">
                         <p className="font-medium">{item.name}</p>
