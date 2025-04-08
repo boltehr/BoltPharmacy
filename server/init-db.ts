@@ -17,7 +17,7 @@ export async function initializeDatabase() {
     existingUsers.map(u => ({id: u.id, email: u.email, role: u.role}))
   );
   
-  // Add test user
+  // Add test user with complete profile
   const testUser: InsertUser = {
     username: 'testuser',
     email: 'test@example.com',
@@ -25,13 +25,22 @@ export async function initializeDatabase() {
     firstName: 'Test',
     lastName: 'User',
     phone: '555-123-4567',
-    address: '123 Main St, Anytown, USA',
+    address: '123 Main St',
+    city: 'Anytown',
+    state: 'CA',
+    zipCode: '12345',
+    billingAddress: '123 Main St',
+    billingCity: 'Anytown',
+    billingState: 'CA',
+    billingZipCode: '12345',
+    sameAsShipping: true,
     dateOfBirth: '1990-01-01',
-    sexAtBirth: 'male',
-    role: 'user'
+    sexAtBirth: 'Male',
+    role: 'user',
+    profileCompleted: true
   };
   
-  // Add admin user
+  // Add admin user with complete profile
   const adminUser: InsertUser = {
     username: 'admin',
     email: 'admin@example.com',
@@ -39,10 +48,19 @@ export async function initializeDatabase() {
     firstName: 'Admin',
     lastName: 'User',
     phone: '555-987-6543',
-    address: '456 Admin St, Admintown, USA',
+    address: '456 Admin St',
+    city: 'Admintown',
+    state: 'NY',
+    zipCode: '54321',
+    billingAddress: '456 Admin St',
+    billingCity: 'Admintown',
+    billingState: 'NY',
+    billingZipCode: '54321',
+    sameAsShipping: true,
     dateOfBirth: '1985-05-05',
-    sexAtBirth: 'female',
-    role: 'admin'
+    sexAtBirth: 'Female',
+    role: 'admin',
+    profileCompleted: true
   };
   
   console.log('Admin user configuration:', JSON.stringify({
@@ -56,18 +74,40 @@ export async function initializeDatabase() {
     const existingUser = await storage.getUserByUsername(testUser.email);
     if (!existingUser) {
       // Hash the password before creating user
+      console.log('Hashing password with bcrypt');
       const hashedPassword = await hashPassword(testUser.password);
+      console.log('Password hashed successfully, result starts with:', hashedPassword.substring(0, 10) + '...');
       await storage.createUser({
         ...testUser,
         password: hashedPassword
       });
-      console.log('Test user created successfully with hashed password');
+      console.log('Test user created successfully with hashed password and complete profile');
     } else {
-      console.log('Test user already exists, updating password...');
+      console.log('Test user already exists, updating password and profile...');
       // Reset password for existing test user
       const hashedPassword = await hashPassword(testUser.password);
       await storage.resetPassword(existingUser.id, hashedPassword);
-      console.log('Test user password updated');
+      
+      // Update profile information
+      await storage.updateUser(existingUser.id, {
+        firstName: testUser.firstName,
+        lastName: testUser.lastName,
+        phone: testUser.phone,
+        address: testUser.address,
+        city: testUser.city,
+        state: testUser.state,
+        zipCode: testUser.zipCode,
+        billingAddress: testUser.billingAddress,
+        billingCity: testUser.billingCity,
+        billingState: testUser.billingState,
+        billingZipCode: testUser.billingZipCode,
+        sameAsShipping: testUser.sameAsShipping,
+        dateOfBirth: testUser.dateOfBirth,
+        sexAtBirth: testUser.sexAtBirth,
+        profileCompleted: true
+      });
+      
+      console.log('Test user password and profile updated');
     }
     
     console.log('Adding admin user...');
@@ -75,6 +115,29 @@ export async function initializeDatabase() {
     try {
       const result = await initializeAdminUser();
       console.log('Admin user initialization result:', result);
+      
+      // Find admin user and update profile if needed
+      const adminUserExists = await storage.getUserByUsername('admin');
+      if (adminUserExists) {
+        await storage.updateUser(adminUserExists.id, {
+          firstName: adminUser.firstName,
+          lastName: adminUser.lastName,
+          phone: adminUser.phone,
+          address: adminUser.address,
+          city: adminUser.city,
+          state: adminUser.state,
+          zipCode: adminUser.zipCode,
+          billingAddress: adminUser.billingAddress,
+          billingCity: adminUser.billingCity,
+          billingState: adminUser.billingState,
+          billingZipCode: adminUser.billingZipCode,
+          sameAsShipping: adminUser.sameAsShipping,
+          dateOfBirth: adminUser.dateOfBirth,
+          sexAtBirth: adminUser.sexAtBirth,
+          profileCompleted: true
+        });
+        console.log('Admin user profile updated');
+      }
     } catch (error) {
       console.error('Error initializing admin user:', error);
     }

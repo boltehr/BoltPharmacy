@@ -150,9 +150,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (response.ok) {
         const data = await response.json();
         setUser(data);
+        
+        // Redirect to complete profile page for new users
+        window.location.href = "/complete-profile?new=true";
+        
         toast({
           title: "Registration successful",
-          description: "Your account has been created",
+          description: "Please complete your profile to continue",
         });
       } else {
         const errorData = await response.json();
