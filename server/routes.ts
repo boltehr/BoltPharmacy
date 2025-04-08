@@ -64,6 +64,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch users" });
     }
   });
+  
+  // Update user role (admin only)
+  router.patch("/users/:id/role", isAdmin, async (req, res) => {
+    try {
+      const userId = Number(req.params.id);
+      const { role } = req.body;
+      
+      // Validate role
+      if (!role || !['user', 'call_center', 'pharmacist', 'admin'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role. Must be one of: user, call_center, pharmacist, admin" });
+      }
+      
+      // Get user to check if exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update user role
+      const updated = await storage.updateUserRole(userId, role);
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to update user role" });
+      }
+      
+      res.status(200).json({ message: "User role updated successfully", userId, role });
+    } catch (err) {
+      console.error("Error updating user role:", err);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
 
   router.get("/users/:id", async (req, res) => {
     const user = await storage.getUser(Number(req.params.id));

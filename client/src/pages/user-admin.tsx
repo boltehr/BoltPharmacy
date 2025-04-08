@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, QueryClient } from '@tanstack/react-query';
 import { Helmet } from 'react-helmet-async';
 import { User } from '@shared/schema';
+
+// Extended user interface with non-nullable role
+interface UserWithRole extends User {
+  role: string;
+}
 import { useAuth } from '@/lib/context/auth';
 // No PageHeading component, we'll use a simple heading instead
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,16 +21,107 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Loader2, SearchIcon } from 'lucide-react';
+import { Loader2, SearchIcon, CheckIcon } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from '@/components/ui/label';
+import { apiRequest, queryClient } from '@/lib/queryClient';
 
+
+// Role Management Dialog Component
+interface RoleManagementDialogProps {
+  userId: number;
+  userName: string;
+  currentRole: string;
+  onRoleChange: (userId: number, newRole: string) => void;
+}
+
+function RoleManagementDialog({ userId, userName, currentRole, onRoleChange }: RoleManagementDialogProps) {
+  const [selectedRole, setSelectedRole] = useState<string>(currentRole || 'user');
+  const [isOpen, setIsOpen] = useState(false);
+
+  const handleSubmit = () => {
+    onRoleChange(userId, selectedRole);
+    setIsOpen(false);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">Manage Role</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>Manage User Role</DialogTitle>
+          <DialogDescription>
+            Change the role for user {userName} (ID: {userId})
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="role" className="text-right">
+              Role
+            </Label>
+            <Select
+              value={selectedRole}
+              onValueChange={setSelectedRole}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User (Customer)</SelectItem>
+                <SelectItem value="call_center">Call Center</SelectItem>
+                <SelectItem value="pharmacist">Pharmacist</SelectItem>
+                <SelectItem value="admin">Administrator</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="submit" onClick={handleSubmit}>Save changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function UserAdmin() {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Role update mutation
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      const res = await apiRequest('PATCH', `/api/users/${userId}/role`, { role });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      toast({
+        title: 'Success',
+        description: 'User role has been updated',
+        variant: 'default',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to update user role: ${error.message}`,
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Fetch all users
-  const { data: users, isLoading, error } = useQuery<User[]>({
+  const { data: users, isLoading, error } = useQuery<UserWithRole[]>({
     queryKey: ['/api/users'],
     queryFn: async () => {
       const response = await fetch('/api/users');
@@ -138,9 +234,23 @@ export default function UserAdmin() {
                             : <span className="text-muted-foreground italic">Not provided</span>}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={user.role === 'admin' ? 'default' : 'outline'}>
-                            {user.role}
-                          </Badge>
+                          {user.role === 'admin' ? (
+                            <Badge variant="default" className="bg-red-500 hover:bg-red-600">
+                              {user.role}
+                            </Badge>
+                          ) : user.role === 'pharmacist' ? (
+                            <Badge variant="default" className="bg-blue-500 hover:bg-blue-600">
+                              {user.role}
+                            </Badge>
+                          ) : user.role === 'call_center' ? (
+                            <Badge variant="default" className="bg-amber-500 hover:bg-amber-600">
+                              {user.role}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">
+                              {user.role}
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell>
                           {user.profileCompleted ? (
@@ -150,19 +260,31 @@ export default function UserAdmin() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => {
-                              // Navigate to user detail view in the future
-                              toast({
-                                title: 'Feature Coming Soon',
-                                description: `Detailed view for user ${user.id} is under development.`
-                              });
-                            }}
-                          >
-                            View Details
-                          </Button>
+                          <div className="flex space-x-2">
+                            <RoleManagementDialog 
+                              userId={user.id}
+                              userName={user.firstName && user.lastName 
+                                ? `${user.firstName} ${user.lastName}`
+                                : user.username || user.email || ''}
+                              currentRole={user.role || 'user'}
+                              onRoleChange={(userId, newRole) => {
+                                updateRoleMutation.mutate({ userId, role: newRole });
+                              }}
+                            />
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                // Navigate to user detail view in the future
+                                toast({
+                                  title: 'Feature Coming Soon',
+                                  description: `Detailed view for user ${user.id} is under development.`
+                                });
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

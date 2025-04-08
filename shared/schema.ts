@@ -44,7 +44,7 @@ export const users = pgTable("users", {
   allergiesVerified: boolean("allergies_verified").default(false),
   // Profile completion status
   profileCompleted: boolean("profile_completed").default(false),
-  // User role
+  // User role - can be "user", "call_center", "pharmacist", "admin"
   role: text("role").default("user"),
 });
 

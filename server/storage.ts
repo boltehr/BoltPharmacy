@@ -32,6 +32,7 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  updateUserRole(id: number, role: string): Promise<boolean>;
   
   // Password reset methods
   storePasswordResetToken(userId: number, token: string, expiry: Date): Promise<boolean>;
@@ -444,6 +445,21 @@ export class MemStorage implements IStorage {
     const updatedUser: User = { ...user, ...userData };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+  
+  async updateUserRole(id: number, role: string): Promise<boolean> {
+    const user = await this.getUser(id);
+    if (!user) return false;
+    
+    // Validate role
+    if (!['user', 'call_center', 'pharmacist', 'admin'].includes(role)) {
+      return false;
+    }
+    
+    // Update user role
+    user.role = role;
+    this.users.set(id, user);
+    return true;
   }
   
   // Password reset methods
@@ -1693,6 +1709,21 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updatedUser;
+  }
+  
+  async updateUserRole(id: number, role: string): Promise<boolean> {
+    // Validate role
+    if (!['user', 'call_center', 'pharmacist', 'admin'].includes(role)) {
+      return false;
+    }
+    
+    const [updatedUser] = await db
+      .update(users)
+      .set({ role })
+      .where(eq(users.id, id))
+      .returning();
+    
+    return !!updatedUser;
   }
   
   // Password reset methods

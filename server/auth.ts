@@ -90,6 +90,78 @@ export async function isAdmin(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+// Middleware to check if user is a pharmacist
+export async function isPharmacist(req: Request, res: Response, next: NextFunction) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
+  try {
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Check if user has pharmacist role (or admin, who can also perform pharmacist actions)
+    if (user.role === 'pharmacist' || user.role === 'admin') {
+      next();
+    } else {
+      res.status(403).json({ message: "Pharmacist access required" });
+    }
+  } catch (error) {
+    console.error("Pharmacist check error:", error);
+    res.status(500).json({ message: "Server error during pharmacist check" });
+  }
+}
+
+// Middleware to check if user is a call center operator
+export async function isCallCenter(req: Request, res: Response, next: NextFunction) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
+  try {
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Check if user has call_center role (or admin, who can perform all actions)
+    if (user.role === 'call_center' || user.role === 'admin') {
+      next();
+    } else {
+      res.status(403).json({ message: "Call center access required" });
+    }
+  } catch (error) {
+    console.error("Call center check error:", error);
+    res.status(500).json({ message: "Server error during call center check" });
+  }
+}
+
+// Middleware to check if user is staff (admin, pharmacist, or call center)
+export async function isStaff(req: Request, res: Response, next: NextFunction) {
+  if (!req.session || !req.session.userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
+  try {
+    const user = await storage.getUser(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    
+    // Check if user has any staff role
+    if (user.role === 'admin' || user.role === 'pharmacist' || user.role === 'call_center') {
+      next();
+    } else {
+      res.status(403).json({ message: "Staff access required" });
+    }
+  } catch (error) {
+    console.error("Staff check error:", error);
+    res.status(500).json({ message: "Server error during staff check" });
+  }
+}
+
 // Route to register a new user
 export async function register(req: Request, res: Response) {
   try {
