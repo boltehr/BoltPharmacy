@@ -56,7 +56,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
       <Route path="/checkout">
-        <ProtectedRoute requireProfileComplete={true}>
+        <ProtectedRoute requireProfileComplete={false}>
           <Checkout />
         </ProtectedRoute>
       </Route>
