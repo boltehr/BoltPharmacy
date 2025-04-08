@@ -67,17 +67,17 @@ const Home = () => {
   const steps = [
     {
       title: t("home.step1"),
-      description: "Search from our wide selection of affordable medications",
+      description: "Browse our selection of affordable prescription medications",
       icon: <Pill className="h-10 w-10" />,
     },
     {
       title: t("home.step2"),
-      description: "Upload your doctor's prescription securely through our platform",
+      description: "Sign in and upload your doctor's prescription securely",
       icon: <Box className="h-10 w-10" />,
     },
     {
       title: t("home.step3"),
-      description: "Review your order and complete the checkout process",
+      description: "Add medications to cart and complete checkout",
       icon: <User className="h-10 w-10" />,
     },
     {
@@ -112,12 +112,7 @@ const Home = () => {
             <div className="mt-10 flex justify-center gap-4">
               <Button asChild size="lg">
                 <Link href="/medications">
-                  <a>{t("common.medications")}</a>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="lg">
-                <Link href="/prescriptions">
-                  <a>{t("common.prescriptions")}</a>
+                  <a>Browse Medications</a>
                 </Link>
               </Button>
             </div>
@@ -128,14 +123,19 @@ const Home = () => {
       {/* Popular Medications Section */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold">{t("home.popular")}</h2>
-            <Link href="/medications">
-              <a className="text-primary flex items-center hover:underline">
-                {t("home.viewAll")}
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </a>
-            </Link>
+          <div className="mb-8">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">{t("home.popular")}</h2>
+              <Link href="/medications">
+                <a className="text-primary flex items-center hover:underline">
+                  {t("home.viewAll")}
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </a>
+              </Link>
+            </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              All medications require a valid prescription. You can upload your prescription after logging in.
+            </p>
           </div>
           
           {loading ? (
@@ -156,7 +156,7 @@ const Home = () => {
                     retailPrice: medication.discount_price ? medication.price : undefined,
                     genericName: medication.generic ? medication.name : undefined,
                     inStock: true,
-                    requiresPrescription: false,
+                    requiresPrescription: true,
                     uses: medication.dosage
                   }}
                 />

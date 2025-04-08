@@ -14,6 +14,7 @@ interface MedicationCardProps {
     retailPrice?: number;
     inStock: boolean;
     requiresPrescription: boolean;
+    imageUrl?: string;
   };
 }
 
@@ -22,11 +23,12 @@ const MedicationCard = ({ medication }: MedicationCardProps) => {
 
   const handleAddToCart = () => {
     addToCart({
-      medicationId: medication.id,
+      id: medication.id,
       name: medication.name,
       price: medication.price,
-      quantity: 1,
+      dosage: medication.uses || "",
       requiresPrescription: medication.requiresPrescription,
+      imageUrl: medication.imageUrl,
     });
   };
 
@@ -50,9 +52,16 @@ const MedicationCard = ({ medication }: MedicationCardProps) => {
                 : medication.genericName || ""}
             </p>
           </div>
-          <Badge variant={medication.inStock ? "default" : "destructive"}>
-            {medication.inStock ? "In Stock" : "Out of Stock"}
-          </Badge>
+          <div className="flex flex-col gap-1">
+            <Badge variant={medication.inStock ? "default" : "destructive"}>
+              {medication.inStock ? "In Stock" : "Out of Stock"}
+            </Badge>
+            {medication.requiresPrescription && (
+              <Badge variant="outline" className="text-xs">
+                Prescription
+              </Badge>
+            )}
+          </div>
         </div>
 
         {medication.uses && (
