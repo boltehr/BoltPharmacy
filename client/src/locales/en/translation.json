@@ -32,7 +32,7 @@
     "backToHome": "Back to Home"
   },
   "home": {
-    "title": "Welcome to BoltEHR Pharmacy",
+    "title": "Welcome to {{brandName}} Pharmacy",
     "subtitle": "Your trusted online pharmacy for affordable medications",
     "popular": "Popular Medications",
     "categories": "Browse by Category",
@@ -225,7 +225,7 @@
   "faq": {
     "title": "Frequently Asked Questions",
     "subtitle": "Find answers to common questions about our services, prescriptions, pricing, and more.",
-    "about_section": "About BoltEHR Pharmacy Platform",
+    "about_section": "About {{brandName}} Pharmacy Platform",
     "prescriptions_section": "Prescriptions & Ordering",
     "insurance_section": "Insurance & Payment",
     "account_section": "Account & Privacy",
@@ -234,9 +234,9 @@
     "email_support": "Email Support",
     "call_support": "Call 1-800-555-1234",
     "questions": {
-      "q1": "What is BoltEHR Pharmacy Platform?",
-      "a1": "BoltEHR Pharmacy Platform is a comprehensive online pharmacy service that provides affordable medications to customers nationwide. We work directly with manufacturers to offer medications at transparent prices without the markup that traditional pharmacies charge. Our mission is to make healthcare more affordable and accessible for everyone.",
-      "q2": "How does BoltEHR Pharmacy Platform offer such low prices?",
+      "q1": "What is {{brandName}} Pharmacy Platform?",
+      "a1": "{{brandName}} Pharmacy Platform is a comprehensive online pharmacy service that provides affordable medications to customers nationwide. We work directly with manufacturers to offer medications at transparent prices without the markup that traditional pharmacies charge. Our mission is to make healthcare more affordable and accessible for everyone.",
+      "q2": "How does {{brandName}} Pharmacy Platform offer such low prices?",
       "a2": "We cut out the middlemen and work directly with medication manufacturers to secure the best possible prices. We operate on a transparent pricing model with a fixed markup on all medications. This approach allows us to offer prescription medications at substantially lower prices than traditional pharmacies.",
       "q3": "Where do you ship medications?",
       "a3": "We currently ship to all 50 U.S. states and territories. All medications are shipped from our U.S.-based pharmacy partners using reliable shipping carriers to ensure your medications arrive safely and promptly.",

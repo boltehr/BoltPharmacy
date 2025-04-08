@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { apiRequest } from "@/lib/queryClient";
-import { WhiteLabelConfig } from "@/lib/context/whiteLabel";
+import { WhiteLabelConfig, useWhiteLabel } from "@/lib/context/whiteLabel";
 import { Button } from "@/components/ui/button";
 import { Pill, ArrowRight, Box, Truck, User } from "lucide-react";
 import MedicationCard from "@/components/medications/MedicationCard";
@@ -24,10 +24,14 @@ interface PopularMedication {
 }
 
 const Home = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { config } = useWhiteLabel();
   const [categories, setCategories] = useState<MedicationCategory[]>([]);
   const [popularMedications, setPopularMedications] = useState<PopularMedication[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Use the brand name from white label config
+  const brandName = config?.name || "BoltEHR";
 
   useEffect(() => {
     const fetchData = async () => {
@@ -83,6 +87,16 @@ const Home = () => {
     },
   ];
 
+  // Add brand name to i18n translation context
+  useEffect(() => {
+    i18n.addResourceBundle('en', 'translation', {
+      brandName: brandName
+    }, true, true);
+    i18n.addResourceBundle('es', 'translation', {
+      brandName: brandName
+    }, true, true);
+  }, [brandName, i18n]);
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Hero Section */}
@@ -90,7 +104,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
-              {t("home.title")}
+              {t("home.title", { brandName })}
             </h1>
             <p className="mt-6 text-xl text-muted-foreground max-w-2xl mx-auto">
               {t("home.subtitle")}

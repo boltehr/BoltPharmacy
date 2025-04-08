@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { 
@@ -25,10 +25,23 @@ import { useWhiteLabel } from "@/lib/context/whiteLabel";
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [location] = useLocation();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const { toggleCart, cartItems, isGuestCart } = useCart();
   const { config } = useWhiteLabel();
+  
+  // Use the brand name from white label config
+  const brandName = config?.name || "BoltEHR";
+  
+  // Add brand name to i18n translation context
+  useEffect(() => {
+    i18n.addResourceBundle('en', 'translation', {
+      brandName: brandName
+    }, true, true);
+    i18n.addResourceBundle('es', 'translation', {
+      brandName: brandName
+    }, true, true);
+  }, [brandName, i18n]);
 
   const isActive = (path: string) => {
     return location === path || location.startsWith(`${path}/`);
@@ -49,7 +62,7 @@ const Header = () => {
             <div className="flex-shrink-0 flex items-center">
               <Link href="/">
                 <a className="text-xl font-bold text-primary">
-                  {config?.name || "BoltEHR Pharmacy"}
+                  {brandName + " Pharmacy"}
                 </a>
               </Link>
             </div>

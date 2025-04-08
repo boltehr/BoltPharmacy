@@ -32,7 +32,7 @@
     "backToHome": "Volver al Inicio"
   },
   "home": {
-    "title": "Bienvenido a Farmacia BoltEHR",
+    "title": "Bienvenido a Farmacia {{brandName}}",
     "subtitle": "Su farmacia en línea de confianza para medicamentos asequibles",
     "popular": "Medicamentos Populares",
     "categories": "Explorar por Categoría",
@@ -225,7 +225,7 @@
   "faq": {
     "title": "Preguntas Frecuentes",
     "subtitle": "Encuentre respuestas a preguntas comunes sobre nuestros servicios, recetas, precios y más.",
-    "about_section": "Acerca de la Plataforma de Farmacia BoltEHR",
+    "about_section": "Acerca de la Plataforma de Farmacia {{brandName}}",
     "prescriptions_section": "Recetas y Pedidos",
     "insurance_section": "Seguro y Pago",
     "account_section": "Cuenta y Privacidad",
@@ -234,9 +234,9 @@
     "email_support": "Soporte por Correo Electrónico",
     "call_support": "Llamar al 1-800-555-1234",
     "questions": {
-      "q1": "¿Qué es la Plataforma de Farmacia BoltEHR?",
-      "a1": "La Plataforma de Farmacia BoltEHR es un servicio integral de farmacia en línea que proporciona medicamentos asequibles a clientes en todo el país. Trabajamos directamente con fabricantes para ofrecer medicamentos a precios transparentes sin el sobreprecio que cobran las farmacias tradicionales. Nuestra misión es hacer que la atención médica sea más asequible y accesible para todos.",
-      "q2": "¿Cómo ofrece la Plataforma de Farmacia BoltEHR precios tan bajos?",
+      "q1": "¿Qué es la Plataforma de Farmacia {{brandName}}?",
+      "a1": "La Plataforma de Farmacia {{brandName}} es un servicio integral de farmacia en línea que proporciona medicamentos asequibles a clientes en todo el país. Trabajamos directamente con fabricantes para ofrecer medicamentos a precios transparentes sin el sobreprecio que cobran las farmacias tradicionales. Nuestra misión es hacer que la atención médica sea más asequible y accesible para todos.",
+      "q2": "¿Cómo ofrece la Plataforma de Farmacia {{brandName}} precios tan bajos?",
       "a2": "Eliminamos a los intermediarios y trabajamos directamente con los fabricantes de medicamentos para asegurar los mejores precios posibles. Operamos con un modelo de precios transparente con un margen fijo en todos los medicamentos. Este enfoque nos permite ofrecer medicamentos recetados a precios sustancialmente más bajos que las farmacias tradicionales.",
       "q3": "¿Dónde envían los medicamentos?",
       "a3": "Actualmente enviamos a los 50 estados de EE. UU. y territorios. Todos los medicamentos se envían desde nuestros socios farmacéuticos con base en EE. UU. utilizando transportistas confiables para garantizar que sus medicamentos lleguen de manera segura y rápida.",

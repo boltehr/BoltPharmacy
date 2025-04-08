@@ -1,10 +1,25 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent } from "@/components/ui/card";
+import { useWhiteLabel } from "@/lib/context/whiteLabel";
 
 export default function FAQPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { config } = useWhiteLabel();
+  
+  // Use the brand name from white label config
+  const brandName = config?.name || "BoltEHR";
+  
+  // Add brand name to i18n translation context
+  useEffect(() => {
+    i18n.addResourceBundle('en', 'translation', {
+      brandName: brandName
+    }, true, true);
+    i18n.addResourceBundle('es', 'translation', {
+      brandName: brandName
+    }, true, true);
+  }, [brandName, i18n]);
   
   return (
     <div className="container py-12">
@@ -136,7 +151,7 @@ export default function FAQPage() {
             {t("faq.support_text")}
           </p>
           <div className="flex justify-center gap-4">
-            <a href="mailto:support@boltehr-pharmacy.com" className="text-primary hover:underline">
+            <a href={`mailto:support@${brandName.toLowerCase()}-pharmacy.com`} className="text-primary hover:underline">
               {t("faq.email_support")}
             </a>
             <span className="text-muted-foreground">•</span>

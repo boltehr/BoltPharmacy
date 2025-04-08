@@ -1,10 +1,24 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { useWhiteLabel } from "@/lib/context/whiteLabel";
+import { useEffect } from "react";
 
 const Footer = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { config } = useWhiteLabel();
+  
+  // Use the brand name from white label config
+  const brandName = config?.name || "BoltEHR";
+  
+  // Add brand name to i18n translation context
+  useEffect(() => {
+    i18n.addResourceBundle('en', 'translation', {
+      brandName: brandName
+    }, true, true);
+    i18n.addResourceBundle('es', 'translation', {
+      brandName: brandName
+    }, true, true);
+  }, [brandName, i18n]);
   
   const currentYear = new Date().getFullYear();
   
@@ -15,7 +29,7 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-1">
             <Link href="/">
               <a className="text-xl font-bold text-primary">
-                {config?.name || "BoltEHR Pharmacy"}
+                {brandName + " Pharmacy"}
               </a>
             </Link>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -127,7 +141,7 @@ const Footer = () => {
         
         <div className="mt-8 pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            &copy; {currentYear} {config?.legalName || config?.name || "BoltEHR Pharmacy"}. {t("common.rights")}
+            &copy; {currentYear} {config?.legalName || (brandName + " Pharmacy")}. {t("common.rights")}
           </p>
           <div className="mt-4 md:mt-0 flex space-x-6">
             {config?.socialLinks?.facebook && (
