@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { ZodError } from "zod";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated, isAdmin, hashPassword } from './auth';
+import { setupAuth, isAuthenticated, isAdmin, hashPassword, initializeAdminUser } from './auth';
 import { shippingService, type ShippingAddress, type PackageDetails } from './services/shipping';
 import { 
   insertUserSchema, 
@@ -1858,6 +1858,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register API routes
   app.use("/api", router);
+  
+  // Add special route for reinitializing users
+  app.get('/api/reinitialize-users', async (_req, res) => {
+    try {
+      // Create a test user
+      const testUser = {
+        username: 'testuser',
+        email: 'test@example.com',
+        password: await hashPassword('password123'),
+        firstName: 'Test',
+        lastName: 'User',
+        phone: '555-123-4567',
+        address: '123 Main St, Anytown, USA',
+        dateOfBirth: '1990-01-01',
+        sexAtBirth: 'male',
+        role: 'user'
+      };
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(testUser.email);
+      if (!existingUser) {
+        await storage.createUser(testUser);
+        console.log('Test user created successfully');
+      } else {
+        console.log('Test user already exists');
+      }
+      
+      // Create admin user via the initialize function
+      const adminResult = await initializeAdminUser();
+      
+      return res.status(200).json({
+        message: 'Users reinitialized successfully',
+        testUser: { email: 'test@example.com', password: 'password123' },
+        adminUser: { email: 'admin@example.com', password: 'Admin123!' },
+        adminResult
+      });
+    } catch (error) {
+      console.error('Error reinitializing users:', error);
+      return res.status(500).json({ message: 'Failed to reinitialize users', error: String(error) });
+    }
+  });
   
   const httpServer = createServer(app);
   return httpServer;
