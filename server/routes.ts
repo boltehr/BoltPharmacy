@@ -17,6 +17,9 @@ import {
   insertRefillRequestSchema,
   insertRefillNotificationSchema,
   insertWhiteLabelSchema,
+  insertInventoryProviderSchema,
+  insertInventoryItemSchema,
+  insertInventoryMappingSchema,
   type CartItem
 } from "@shared/schema";
 import { fromZodError } from "zod-validation-error";
