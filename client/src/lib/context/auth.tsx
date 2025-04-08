@@ -56,6 +56,8 @@ export interface AuthContextType {
   logout: () => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<void>;
   refetchUser: () => Promise<User | null>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -67,6 +69,8 @@ export const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
   updateProfile: async () => {},
   refetchUser: async () => null,
+  forgotPassword: async () => {},
+  resetPassword: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -247,6 +251,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const forgotPassword = async (email: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await apiRequest("POST", "/api/forgot-password", { email });
+      
+      if (response.ok) {
+        toast({
+          title: "Password reset initiated",
+          description: "If the email exists in our system, password reset instructions will be sent to it.",
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to process password reset request."
+        );
+      }
+    } catch (err) {
+      console.error("Password reset error:", err);
+      setError(err instanceof Error ? err : new Error("Password reset failed"));
+      toast({
+        title: "Password reset failed",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await apiRequest("POST", "/api/reset-password", { 
+        token, 
+        newPassword 
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Password reset successful",
+          description: "Your password has been updated. You can now log in with your new password.",
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.message || "Failed to reset password."
+        );
+      }
+    } catch (err) {
+      console.error("Password reset error:", err);
+      setError(err instanceof Error ? err : new Error("Password reset failed"));
+      toast({
+        title: "Password reset failed",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -258,6 +329,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         logout,
         updateProfile,
         refetchUser,
+        forgotPassword,
+        resetPassword,
       }}
     >
       {children}

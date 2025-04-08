@@ -14,6 +14,7 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import AuthPage from "@/pages/auth-page";
+import ResetPassword from "@/pages/reset-password";
 import Medications from "@/pages/medications";
 import MedicationDetail from "@/pages/medication-detail";
 import Prescriptions from "@/pages/prescriptions";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/medications" component={Medications} />
       <Route path="/medications/:id" component={MedicationDetail} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/complete-profile">
         <ProtectedRoute requireProfileComplete={false}>
           <CompleteProfile />

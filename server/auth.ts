@@ -220,6 +220,98 @@ export async function getCurrentUser(req: Request, res: Response) {
   }
 }
 
+// Route to handle forgot password requests
+export async function forgotPassword(req: Request, res: Response) {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    
+    // Email validation with regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+    
+    // Find the user by email
+    const user = await storage.getUserByEmail(email);
+    
+    // Important security note: we always return a success message even if the email doesn't exist
+    // This prevents user enumeration attacks
+    
+    if (user) {
+      // Generate a unique token that expires in 1 hour
+      const resetToken = Math.random().toString(36).substring(2, 15) + 
+                         Math.random().toString(36).substring(2, 15);
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour
+      
+      // Store the token in the database
+      await storage.storePasswordResetToken(user.id, resetToken, resetTokenExpiry);
+      
+      // In a real implementation, send an email with a link to reset password
+      // For this demo, we'll just log it to the console
+      console.log(`[DEMO] Password reset link for ${email}: /reset-password?token=${resetToken}`);
+      
+      // TODO: Send actual email notification with SendGrid
+      // This would be implemented once we have the SendGrid API key
+    }
+    
+    // Always return a success message, regardless of whether user exists
+    res.status(200).json({ 
+      message: "If the email exists in our system, password reset instructions will be sent to it."
+    });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    res.status(500).json({ message: "Failed to process forgot password request" });
+  }
+}
+
+// Reset password using token
+export async function resetPassword(req: Request, res: Response) {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: "Token and new password are required" });
+    }
+    
+    // Validate the new password
+    try {
+      registerSchema.pick({ password: true }).parse({ password: newPassword });
+    } catch (err: any) {
+      const validationError = fromZodError(err);
+      return res.status(400).json({ 
+        message: "Password validation failed", 
+        errors: validationError.details 
+      });
+    }
+    
+    // Find user by reset token
+    const user = await storage.getUserByResetToken(token);
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
+    }
+    
+    // Hash the new password
+    const hashedPassword = await hashPassword(newPassword);
+    
+    // Update the user's password and remove the reset token
+    const success = await storage.resetPassword(user.id, hashedPassword);
+    
+    if (!success) {
+      return res.status(500).json({ message: "Failed to reset password" });
+    }
+    
+    // Return success message
+    res.status(200).json({ message: "Password has been reset successfully" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    res.status(500).json({ message: "Failed to reset password" });
+  }
+}
+
 // Function to set up authentication routes
 export function setupAuth(app: Express) {
   // Set up session middleware
@@ -235,4 +327,6 @@ export function setupAuth(app: Express) {
   app.post("/api/login", login);
   app.post("/api/logout", logout);
   app.get("/api/user", getCurrentUser);
+  app.post("/api/forgot-password", forgotPassword);
+  app.post("/api/reset-password", resetPassword);
 }

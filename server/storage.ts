@@ -33,6 +33,11 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
   
+  // Password reset methods
+  storePasswordResetToken(userId: number, token: string, expiry: Date): Promise<boolean>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  resetPassword(userId: number, newPassword: string): Promise<boolean>;
+  
   // Allergy methods
   updateUserAllergies(id: number, allergies: string[], noKnownAllergies: boolean): Promise<User | undefined>;
   verifyUserAllergies(id: number): Promise<User | undefined>;
@@ -436,6 +441,44 @@ export class MemStorage implements IStorage {
     const updatedUser: User = { ...user, ...userData };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+  
+  // Password reset methods
+  async storePasswordResetToken(userId: number, token: string, expiry: Date): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    const updatedUser: User = {
+      ...user,
+      resetToken: token,
+      resetTokenExpiry: expiry
+    };
+    
+    this.users.set(userId, updatedUser);
+    return true;
+  }
+  
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => 
+      user.resetToken === token && 
+      user.resetTokenExpiry && 
+      new Date(user.resetTokenExpiry) > new Date()
+    );
+  }
+  
+  async resetPassword(userId: number, newPassword: string): Promise<boolean> {
+    const user = await this.getUser(userId);
+    if (!user) return false;
+    
+    const updatedUser: User = {
+      ...user,
+      password: newPassword,
+      resetToken: null,
+      resetTokenExpiry: null
+    };
+    
+    this.users.set(userId, updatedUser);
+    return true;
   }
   
   // Allergy methods

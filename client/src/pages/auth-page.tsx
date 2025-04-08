@@ -56,8 +56,9 @@ type LoginFormValues = z.infer<typeof loginFormSchema>;
 type RegisterFormValues = z.infer<typeof registerFormSchema>;
 
 export default function AuthPage() {
-  const { user, login, register } = useAuth();
+  const { user, login, register, forgotPassword } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("login");
+  const [showForgotPassword, setShowForgotPassword] = useState<boolean>(false);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -78,6 +79,16 @@ export default function AuthPage() {
       phone: "",
     },
   });
+  
+  // Forgot password form
+  const forgotPasswordForm = useForm<{ email: string }>({
+    resolver: zodResolver(z.object({
+      email: z.string().email("Please enter a valid email address")
+    })),
+    defaultValues: {
+      email: "",
+    },
+  });
 
   // Submit handlers
   const onLoginSubmit = async (values: LoginFormValues) => {
@@ -96,6 +107,17 @@ export default function AuthPage() {
       await register(values);
     } catch (error) {
       console.error("Registration failed:", error);
+    }
+  };
+  
+  const onForgotPasswordSubmit = async (values: { email: string }) => {
+    try {
+      await forgotPassword(values.email);
+      // Reset form and go back to login
+      forgotPasswordForm.reset();
+      setShowForgotPassword(false);
+    } catch (error) {
+      console.error("Password reset request failed:", error);
     }
   };
 
@@ -132,49 +154,95 @@ export default function AuthPage() {
             
             {/* Login Form */}
             <TabsContent value="login">
-              <Form {...loginForm}>
-                <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4 p-6">
-                  <FormField
-                    control={loginForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input placeholder="example@email.com" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={loginForm.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="••••••••" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end mb-2">
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-xs" 
-                      type="button"
-                      onClick={() => alert("Forgot password functionality will be implemented soon!")}
-                    >
-                      Forgot password?
+              {showForgotPassword ? (
+                <Form {...forgotPasswordForm}>
+                  <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPasswordSubmit)} className="space-y-4 p-6">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-medium">Reset Password</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Enter your email address below and we'll send you a link to reset your password.
+                      </p>
+                    </div>
+                    <FormField
+                      control={forgotPasswordForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="example@email.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex flex-col space-y-2">
+                      <Button 
+                        type="submit" 
+                        className="w-full" 
+                        disabled={forgotPasswordForm.formState.isSubmitting}
+                      >
+                        {forgotPasswordForm.formState.isSubmitting 
+                          ? "Sending reset link..." 
+                          : "Send Reset Link"
+                        }
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        className="w-full" 
+                        onClick={() => setShowForgotPassword(false)}
+                      >
+                        Back to Login
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              ) : (
+                <Form {...loginForm}>
+                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4 p-6">
+                    <FormField
+                      control={loginForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input placeholder="example@email.com" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={loginForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input type="password" placeholder="••••••••" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex justify-end mb-2">
+                      <Button 
+                        variant="link" 
+                        className="p-0 h-auto text-xs" 
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                      >
+                        Forgot password?
+                      </Button>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
+                      {loginForm.formState.isSubmitting ? "Signing in..." : "Sign In"}
                     </Button>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loginForm.formState.isSubmitting}>
-                    {loginForm.formState.isSubmitting ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </Form>
+                  </form>
+                </Form>
+              )}
             </TabsContent>
             
             {/* Register Form */}

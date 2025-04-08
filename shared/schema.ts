@@ -16,6 +16,9 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").default(false),
   verificationToken: text("verification_token"),
   verificationTokenExpiry: timestamp("verification_token_expiry"),
+  // Password reset
+  resetToken: text("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
   // Communication preferences
   orderStatusMethod: text("order_status_method").default("email"), // email, sms
   receivePromotions: boolean("receive_promotions").default(true),
