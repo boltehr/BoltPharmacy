@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,20 +31,56 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const formSchema = z.object({
+// We'll create a separate schema for each prescription method
+const doctorRequestSchema = z.object({
   doctorName: z.string().min(1, "Doctor's name is required"),
   doctorPhone: z.string().min(10, "Please enter a valid phone number"),
   notes: z.string().optional(),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+const pharmacyTransferSchema = z.object({
+  pharmacyName: z.string().min(1, "Pharmacy name is required"),
+  pharmacyPhone: z.string().min(10, "Please enter a valid phone number"),
+  prescriptionNumber: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+// Use the appropriate schema based on the uploadMethod
+const getFormSchema = (method: string) => {
+  if (method === "doctor") return doctorRequestSchema;
+  if (method === "transfer") return pharmacyTransferSchema;
+  return doctorRequestSchema; // Default
+};
+
+// For TypeScript, we'll use a union type
+type DoctorFormValues = z.infer<typeof doctorRequestSchema>;
+type PharmacyFormValues = z.infer<typeof pharmacyTransferSchema>;
+type FormValues = DoctorFormValues & PharmacyFormValues; // Combined type for flexibility
 
 const PrescriptionUpload = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
-  const [uploadMethod, setUploadMethod] = useState<"upload" | "doctor">("upload");
+  const [uploadMethod, setUploadMethod] = useState<"upload" | "doctor" | "transfer">("upload");
+  
+  // Setup the form with the appropriate schema based on the upload method
+  const form = useForm<FormValues>({
+    resolver: zodResolver(getFormSchema(uploadMethod)),
+    defaultValues: {
+      doctorName: "",
+      doctorPhone: "",
+      pharmacyName: "",
+      pharmacyPhone: "",
+      prescriptionNumber: "",
+      notes: "",
+    },
+  });
+  
+  // Update form validation when upload method changes
+  useEffect(() => {
+    form.reset();
+  }, [uploadMethod, form]);
 
   // Get existing prescriptions
   const { data: prescriptions, isLoading } = useQuery({
@@ -101,15 +137,6 @@ const PrescriptionUpload = () => {
         description: "Your prescription has been cancelled",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/prescriptions/user", user?.id] });
-    },
-  });
-
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      doctorName: "",
-      doctorPhone: "",
-      notes: "",
     },
   });
 
@@ -185,19 +212,37 @@ const PrescriptionUpload = () => {
     uploadPrescription({
       doctorName: "Not provided",
       doctorPhone: "Not provided",
+      pharmacyName: "Not provided",
+      pharmacyPhone: "Not provided",
       notes: `File: ${file.name}`,
+      method: "upload"
     });
   };
 
-  // Handle doctor request form submission
+  // Handle form submissions for doctor requests and pharmacy transfers
   const onSubmit = (values: FormValues) => {
-    uploadPrescription(values);
+    // Prepare submission data based on the current upload method
+    const submissionData: any = {
+      ...values,
+      method: uploadMethod
+    };
+    
+    // Add default values for fields not in the current form
+    if (uploadMethod === "doctor") {
+      submissionData.pharmacyName = "Not provided";
+      submissionData.pharmacyPhone = "Not provided";
+    } else if (uploadMethod === "transfer") {
+      submissionData.doctorName = "Not provided";
+      submissionData.doctorPhone = "Not provided";
+    }
+    
+    uploadPrescription(submissionData);
     form.reset();
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex space-x-4">
+      <div className="flex space-x-2">
         <Button
           variant={uploadMethod === "upload" ? "default" : "outline"}
           onClick={() => setUploadMethod("upload")}
@@ -213,6 +258,14 @@ const PrescriptionUpload = () => {
         >
           <FileText className="mr-2 h-4 w-4" />
           Request from Doctor
+        </Button>
+        <Button
+          variant={uploadMethod === "transfer" ? "default" : "outline"}
+          onClick={() => setUploadMethod("transfer")}
+          className="flex-1"
+        >
+          <FileText className="mr-2 h-4 w-4" />
+          Transfer from Pharmacy
         </Button>
       </div>
 
@@ -290,7 +343,7 @@ const PrescriptionUpload = () => {
             </div>
           </CardContent>
         </Card>
-      ) : (
+      ) : uploadMethod === "doctor" ? (
         <Card>
           <CardContent className="pt-6">
             <h3 className="text-lg font-semibold mb-4">Request from Doctor</h3>
@@ -357,6 +410,90 @@ const PrescriptionUpload = () => {
             </Form>
           </CardContent>
         </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-semibold mb-4">Transfer from Pharmacy</h3>
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="pharmacyName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pharmacy Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="pharmacyPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pharmacy Phone</FormLabel>
+                      <FormControl>
+                        <Input type="tel" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="prescriptionNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Prescription Number (if available)</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: You can find this on your prescription label
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Additional Notes</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Any special instructions or details about your prescription"
+                          className="resize-none"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: Add details about medication names, dosages, etc.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={isUploading}
+                >
+                  {isUploading ? "Submitting..." : "Request Transfer"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
@@ -402,8 +539,10 @@ const PrescriptionUpload = () => {
                       </div>
                       <div className="ml-3">
                         <p className="font-medium">
-                          {prescription.doctorName !== "Not provided" 
+                          {prescription.doctorName && prescription.doctorName !== "Not provided" 
                             ? `Dr. ${prescription.doctorName}` 
+                            : prescription.pharmacyName && prescription.pharmacyName !== "Not provided"
+                            ? `${prescription.pharmacyName} (Transfer)`
                             : "Uploaded Prescription"}
                         </p>
                         <p className="text-sm text-neutral-500">
@@ -414,10 +553,21 @@ const PrescriptionUpload = () => {
                     <Badge status={prescription.status} />
                   </div>
                   
-                  {prescription.notes && (
+                  {(prescription.prescriptionNumber || prescription.notes) && (
                     <div className="mt-2 text-sm text-neutral-600">
-                      <p className="font-medium">Notes:</p>
-                      <p>{prescription.notes}</p>
+                      {prescription.prescriptionNumber && (
+                        <div className="mb-2">
+                          <p className="font-medium">Prescription #:</p>
+                          <p>{prescription.prescriptionNumber}</p>
+                        </div>
+                      )}
+                      
+                      {prescription.notes && (
+                        <div>
+                          <p className="font-medium">Notes:</p>
+                          <p>{prescription.notes}</p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
