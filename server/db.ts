@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import 'dotenv/config';
 
 // Make sure we have a DATABASE_URL
 if (!process.env.DATABASE_URL) {
@@ -12,9 +13,7 @@ console.log("Connecting to PostgreSQL database...");
 // Create a PostgreSQL connection pool with error handling
 export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for some PG providers
-  },
+  ssl: false,
   max: 5, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // How long a client is allowed to remain idle before being closed
   connectionTimeoutMillis: 10000 // How long to wait for a connection
